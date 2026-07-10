@@ -1,0 +1,149 @@
+openapi: 3.0.3
+info:
+  title: Al-Rabb Tours & Travels API
+  description: Enterprise API for travel request management.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Main Production API
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: User Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login. If OTP is required, returns an OTP challenge token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  requires_otp:
+                    type: boolean
+
+  /auth/verify-otp:
+    post:
+      summary: Verify Login OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp_code:
+                  type: string
+      responses:
+        '200':
+          description: OTP verified. Refresh token set in HttpOnly cookie.
+
+  /requests:
+    get:
+      summary: List travel requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of requests.
+          
+  /requests/group-visa:
+    post:
+      summary: Submit a Group Visa request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupVisaRequest'
+      responses:
+        '201':
+          description: Created successfully.
+
+  /requests/air-ticket:
+    post:
+      summary: Submit an Air Ticket request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AirTicketRequest'
+      responses:
+        '201':
+          description: Created successfully.
+
+  /storage/presigned-url:
+    post:
+      summary: Generate a pre-signed URL for direct-to-S3 uploads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename:
+                  type: string
+                content_type:
+                  type: string
+                size_bytes:
+                  type: integer
+      responses:
+        '200':
+          description: Pre-signed URL generated.
+
+components:
+  schemas:
+    GroupVisaRequest:
+      type: object
+      required:
+        - number_of_passengers
+        - flight_code
+      properties:
+        number_of_passengers:
+          type: integer
+        flight_code:
+          type: string
+        # ... additional fields truncated for brevity
+    AirTicketRequest:
+      type: object
+      required:
+        - origin
+        - destination
+      properties:
+        origin:
+          type: string
+        destination:
+          type: string

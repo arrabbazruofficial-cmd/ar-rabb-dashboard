@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: alrabb_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-alrabb}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${DB_NAME:-alrabb_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: alrabb_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  web:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alrabb_backend
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DATABASE_URL=postgres://${DB_USER:-alrabb}:${DB_PASSWORD:-supersecret}@db:5432/${DB_NAME:-alrabb_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG:-False}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alrabb_celery
+    command: celery -A core worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DATABASE_URL=postgres://${DB_USER:-alrabb}:${DB_PASSWORD:-supersecret}@db:5432/${DB_NAME:-alrabb_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      - db
+      - redis
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
