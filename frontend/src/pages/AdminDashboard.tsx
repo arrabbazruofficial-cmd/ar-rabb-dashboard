@@ -14,7 +14,7 @@ function DashboardHome() {
     const fetchMetrics = async () => {
       try {
         const [reqRes, agRes, custRes] = await Promise.all([
-          api.get('/travel-requests/'),
+          api.get('/requests/'),
           api.get('/auth/users/?role=AGENCY'),
           api.get('/auth/users/?role=CUSTOMER')
         ]);
@@ -221,7 +221,7 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const url = type ? `/travel-requests/?request_type__in=${type}` : `/travel-requests/`;
+        const url = type ? `/requests/?request_type__in=${type}` : `/requests/`;
         const res = await api.get(url);
         setRequests(res.data.results || res.data);
       } catch (err) {

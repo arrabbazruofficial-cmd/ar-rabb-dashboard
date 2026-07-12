@@ -30,7 +30,7 @@ class RequestViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == 'AGENCY':
-            agency = getattr(user, 'agency', None)
+            agency = getattr(user, 'agency_profile', None)
             serializer.save(agency=agency)
         elif user.role == 'CUSTOMER':
             serializer.save(customer=user)
