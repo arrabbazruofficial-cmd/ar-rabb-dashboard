@@ -262,6 +262,37 @@ function RequestDetailsModal({ request, onClose }: { request: any, onClose: () =
                 <div><span className="text-muted-foreground">Saudi Phone:</span> {request.group_visa.saudi_number}</div>
                 <div className="col-span-2"><span className="text-muted-foreground">Itinerary:</span> {request.group_visa.flight_itinerary}</div>
               </div>
+
+              {request.group_visa.hotels && request.group_visa.hotels.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Hotels</h4>
+                  <div className="space-y-2">
+                    {request.group_visa.hotels.map((h: any, idx: number) => (
+                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
+                        <div><span className="text-muted-foreground">City:</span> {h.city}</div>
+                        <div><span className="text-muted-foreground">Hotel:</span> {h.hotel_name}</div>
+                        <div><span className="text-muted-foreground">Room:</span> {h.room_type} ({h.room_count} count)</div>
+                        <div><span className="text-muted-foreground">Dates:</span> {h.check_in} to {h.check_out}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {request.group_visa.transports && request.group_visa.transports.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Transports</h4>
+                  <div className="space-y-2">
+                    {request.group_visa.transports.map((t: any, idx: number) => (
+                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
+                        <div><span className="text-muted-foreground">Type:</span> {t.transport_type}</div>
+                        <div><span className="text-muted-foreground">Period:</span> {t.period}</div>
+                        <div className="col-span-2"><span className="text-muted-foreground">Schedule:</span> {t.date} at {t.time}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -340,6 +371,18 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
     }
   };
 
+  const handleRequestDelete = async (reqId: string) => {
+    setOpenDropdownId(null);
+    if (!confirm("Are you sure you want to permanently delete this request?")) return;
+    try {
+      await api.delete(`/requests/${reqId}/`);
+      fetchRequests();
+    } catch (err) {
+      console.error("Failed to delete request", err);
+      alert("Failed to delete request.");
+    }
+  };
+
   const statusOptions = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'PROCESSING', 'APPROVED', 'REJECTED', 'COMPLETED'];
 
   return (
@@ -414,6 +457,14 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
                                 {status.replace('_', ' ')}
                               </button>
                             ))}
+                            <div className="h-px bg-border my-1" />
+                            <button 
+                              onClick={() => handleRequestDelete(r.id)}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2 font-medium"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete Request
+                            </button>
                           </div>
                         </>
                       )}
@@ -475,9 +526,9 @@ export default function AdminDashboard() {
         <Route path="" element={<DashboardHome />} />
         <Route path="agencies" element={<UserManagement title="Agencies Management" role="AGENCY" />} />
         <Route path="customers" element={<UserManagement title="Customers Management" role="CUSTOMER" />} />
-        <Route path="requests" element={<RequestsManagement title="All Requests" />} />
-        <Route path="visas" element={<RequestsManagement title="Visa Requests" type="GROUP_VISA,INDIVIDUAL_VISA" />} />
-        <Route path="tickets" element={<RequestsManagement title="Ticket Requests" type="AIR_TICKET" />} />
+        <Route path="requests" element={<RequestsManagement key="all" title="All Requests" />} />
+        <Route path="visas" element={<RequestsManagement key="visas" title="Visa Requests" type="GROUP_VISA,INDIVIDUAL_VISA" />} />
+        <Route path="tickets" element={<RequestsManagement key="tickets" title="Ticket Requests" type="AIR_TICKET" />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>
