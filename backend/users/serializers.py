@@ -1,24 +1,38 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
         token['role'] = user.role
+        token['email'] = user.email
+        token['is_verified'] = user.is_verified
         return token
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'role', 'is_active', 'is_verified', 'created_at')
-        read_only_fields = ('id', 'created_at')
+        fields = ('id', 'email', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'email', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at')
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Serializer for admins to manage users — can update role, is_active, is_verified."""
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'role', 'is_active', 'is_verified', 'is_staff', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'email', 'created_at', 'updated_at')
+
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, validators=[validate_password])
 
     class Meta:
         model = User
@@ -31,3 +45,21 @@ class RegisterSerializer(serializers.ModelSerializer):
             role=validated_data.get('role', 'AGENCY')
         )
         return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Current password is incorrect.')
+        return value
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    code = serializers.CharField(max_length=6, required=True)
+
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)

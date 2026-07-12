@@ -1,10 +1,8 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import AgencyViewSet
-
-router = DefaultRouter()
-router.register(r'', AgencyViewSet, basename='agency')
+from django.urls import path
+from .views import AgencyListView, AgencyDetailView, AgencyStatusUpdateView
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('', AgencyListView.as_view(), name='agency-list'),
+    path('<uuid:id>/', AgencyDetailView.as_view(), name='agency-detail'),
+    path('<uuid:id>/status/', AgencyStatusUpdateView.as_view(), name='agency-status'),
 ]

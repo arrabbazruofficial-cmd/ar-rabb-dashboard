@@ -1,0 +1,113 @@
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import { FileText, Search, Filter } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+export default function MyRequests() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const res = await api.get('/requests/');
+        // The API returns a paginated response, so data might be in res.data.results
+        setRequests(res.data.results || res.data || []);
+      } catch (error) {
+        console.error('Failed to fetch requests', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRequests();
+  }, []);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'DRAFT': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'SUBMITTED': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'UNDER_REVIEW': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'PROCESSING': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'APPROVED': return 'bg-green-100 text-green-800 border-green-200';
+      case 'REJECTED': return 'bg-red-100 text-red-800 border-red-200';
+      case 'COMPLETED': return 'bg-teal-100 text-teal-800 border-teal-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">My Requests</h1>
+          <p className="text-sm text-muted-foreground mt-1">Track and manage all your submitted requests.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input type="text" placeholder="Search requests..." className="pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-lg w-full sm:w-64" />
+          </div>
+          <button className="p-2 bg-card border border-border rounded-lg hover:bg-secondary">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-secondary/50 text-muted-foreground font-medium border-b border-border">
+              <tr>
+                <th className="px-6 py-4">Request ID</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Submitted On</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    Loading requests...
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No requests found.</p>
+                  </td>
+                </tr>
+              ) : (
+                requests.map((req) => (
+                  <tr key={req.id} className="hover:bg-secondary/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-xs font-mono">{req.id.split('-')[0]}...</td>
+                    <td className="px-6 py-4">{req.request_type.replace('_', ' ')}</td>
+                    <td className="px-6 py-4">{new Date(req.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", getStatusColor(req.status))}>
+                        {req.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-primary hover:underline font-medium text-xs">View Details</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+          <span>Showing {requests.length} results</span>
+          <div className="flex gap-2">
+            <button className="px-3 py-1 border border-border rounded hover:bg-secondary disabled:opacity-50" disabled>Previous</button>
+            <button className="px-3 py-1 border border-border rounded hover:bg-secondary disabled:opacity-50" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

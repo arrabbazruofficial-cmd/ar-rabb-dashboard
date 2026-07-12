@@ -1,96 +1,92 @@
-from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
-from django.http import HttpResponse
-import openpyxl
-from .models import BaseRequest, GroupVisa, AirTicket, RequestType
-from .serializers import BaseRequestSerializer, GroupVisaSerializer, AirTicketSerializer
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from .models import BaseRequest, Attachment
+from .serializers import BaseRequestSerializer, AttachmentSerializer
+from core.emails import notify_admins_new_request, notify_user_status_change
+
 
 class RequestViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
     serializer_class = BaseRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['request_type', 'status', 'agency']
+    search_fields = ['id', 'agency__company_name']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user
         if user.role in ['SUPER_ADMIN', 'ADMIN']:
-            return BaseRequest.objects.all().order_by('-created_at')
-        if hasattr(user, 'agency_profile'):
-            return BaseRequest.objects.filter(agency=user.agency_profile).order_by('-created_at')
-        return BaseRequest.objects.none() # Customers don't have access to this endpoint directly for now
+            return BaseRequest.objects.all()
+        elif user.role == 'AGENCY':
+            return BaseRequest.objects.filter(agency__user=user)
+        elif user.role == 'CUSTOMER':
+            return BaseRequest.objects.filter(customer=user)
+        return BaseRequest.objects.none()
 
-    @action(detail=False, methods=['post'], url_path='group-visa')
-    def create_group_visa(self, request):
-        if not hasattr(request.user, 'agency_profile'):
-            return Response({'error': 'Only agencies can submit group visas'}, status=status.HTTP_403_FORBIDDEN)
-        
-        base_req = BaseRequest.objects.create(request_type=RequestType.GROUP_VISA, agency=request.user.agency_profile)
-        
-        visa_data = request.data.copy()
-        visa_data['request'] = base_req.id
-        serializer = GroupVisaSerializer(data=visa_data)
-        
-        if serializer.is_valid():
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == 'AGENCY':
+            agency = getattr(user, 'agency', None)
+            serializer.save(agency=agency)
+        elif user.role == 'CUSTOMER':
+            serializer.save(customer=user)
+        else:
             serializer.save()
-            return Response(BaseRequestSerializer(base_req).data, status=status.HTTP_201_CREATED)
-        
-        base_req.delete()
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['post'], url_path='air-ticket')
-    def create_air_ticket(self, request):
-        agency = getattr(request.user, 'agency_profile', None)
-        base_req = BaseRequest.objects.create(request_type=RequestType.AIR_TICKET, agency=agency)
-        
-        ticket_data = request.data.copy()
-        ticket_data['request'] = base_req.id
-        serializer = AirTicketSerializer(data=ticket_data)
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(BaseRequestSerializer(base_req).data, status=status.HTTP_201_CREATED)
-        
-        base_req.delete()
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['get'], url_path='export-excel')
-    def export_excel(self, request):
-        if request.user.role != 'SUPER_ADMIN':
-            return Response({'error': 'Only Super Admins can export data'}, status=status.HTTP_403_FORBIDDEN)
             
-        wb = openpyxl.Workbook()
+        # Create notification
+        from notifications.models import Notification, NotificationType
+        Notification.objects.create(
+            user=user,
+            title='Request Submitted',
+            message=f'Your {serializer.instance.get_request_type_display()} request has been successfully submitted.',
+            notification_type=NotificationType.REQUEST_SUBMITTED,
+            related_request_id=serializer.instance.id
+        )
         
-        # Sheet 1: Group Visas
-        ws_group = wb.active
-        ws_group.title = "Group Visas"
-        ws_group.append(['ID', 'Agency', 'Status', 'Passengers', 'Flight Code', 'Travel Date', 'Country Code', 'Group Leader', 'Created At'])
-        
-        group_reqs = BaseRequest.objects.filter(request_type=RequestType.GROUP_VISA).select_related('group_visa_details', 'agency')
-        for req in group_reqs:
-            details = getattr(req, 'group_visa_details', None)
-            if not details: continue
-            agency_name = req.agency.company_name if req.agency else 'N/A'
-            ws_group.append([
-                str(req.id), agency_name, req.status, details.number_of_passengers, details.flight_code,
-                str(details.travel_date), details.country_code, details.group_leader_name, req.created_at.strftime("%Y-%m-%d %H:%M")
-            ])
+        notify_admins_new_request(serializer.instance.request_type, str(serializer.instance.id))
 
-        # Sheet 2: Air Tickets
-        ws_air = wb.create_sheet(title="Air Tickets")
-        ws_air.append(['ID', 'Agency', 'Status', 'Origin', 'Destination', 'Arrival', 'Departure', 'Passengers', 'Airline', 'Created At'])
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        if request.user.role not in ['SUPER_ADMIN', 'ADMIN']:
+            return Response(status=status.HTTP_403_FORBIDDEN)
         
-        air_reqs = BaseRequest.objects.filter(request_type=RequestType.AIR_TICKET).select_related('air_ticket_details', 'agency')
-        for req in air_reqs:
-            details = getattr(req, 'air_ticket_details', None)
-            if not details: continue
-            agency_name = req.agency.company_name if req.agency else 'N/A'
-            ws_air.append([
-                str(req.id), agency_name, req.status, details.origin, details.destination,
-                str(details.arrival_date), str(details.departure_date), details.passengers, details.preferred_airline or 'N/A', req.created_at.strftime("%Y-%m-%d %H:%M")
-            ])
+        obj = self.get_object()
+        new_status = request.data.get('status')
+        if not new_status:
+            return Response({'detail': 'Status is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        obj.status = new_status
+        obj.save()
 
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=alrabb_requests_export.xlsx'
-        wb.save(response)
-        
-        return response
+        # Create notification
+        from notifications.models import Notification, NotificationType
+        user_to_notify = obj.customer if obj.customer else (obj.agency.user if obj.agency else None)
+        if user_to_notify:
+            Notification.objects.create(
+                user=user_to_notify,
+                title='Request Status Updated',
+                message=f'Your request ({obj.id}) is now {new_status}.',
+                notification_type=NotificationType.STATUS_CHANGED,
+                related_request_id=obj.id
+            )
+            notify_user_status_change(user_to_notify.email, str(obj.id), new_status)
+
+        return Response(BaseRequestSerializer(obj).data)
+
+
+class AttachmentViewSet(viewsets.ModelViewSet):
+    serializer_class = AttachmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ['SUPER_ADMIN', 'ADMIN']:
+            return Attachment.objects.all()
+        return Attachment.objects.filter(request__agency__user=user) | Attachment.objects.filter(request__customer=user)
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
