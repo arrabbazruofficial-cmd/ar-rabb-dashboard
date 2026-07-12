@@ -11,22 +11,23 @@ class Command(BaseCommand):
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
 
         if not email or not password:
-            self.stdout.write(self.style.WARNING(
-                'Superuser email or password not found in environment variables. '
-                'Skipping superuser creation.'
-            ))
+            print("==================================================")
+            print("⚠️  SUPERUSER SETUP SKIPPED")
+            print("⚠️  Missing DJANGO_SUPERUSER_EMAIL or DJANGO_SUPERUSER_PASSWORD")
+            print("==================================================")
             return
 
         if User.objects.filter(email=email).exists():
-            self.stdout.write(self.style.SUCCESS(
-                f'Superuser {email} already exists.'
-            ))
+            print("==================================================")
+            print(f"✅  SUPERUSER SETUP: Account '{email}' already exists.")
+            print("==================================================")
         else:
             User.objects.create_superuser(
                 email=email,
                 password=password,
                 role='SUPER_ADMIN'
             )
-            self.stdout.write(self.style.SUCCESS(
-                f'Successfully created superuser: {email}'
-            ))
+            print("==================================================")
+            print(f"🚀  SUPERUSER SETUP SUCCESSFUL!")
+            print(f"🚀  Created super admin account for: {email}")
+            print("==================================================")
