@@ -9,9 +9,19 @@ const registerSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
   confirmPassword: z.string(),
+  role: z.enum(["AGENCY", "CUSTOMER"]),
+  company_name: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
+}).refine((data) => {
+  if (data.role === "AGENCY" && (!data.company_name || data.company_name.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Agency Name is required",
+  path: ["company_name"],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -22,9 +32,14 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema)
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      role: "AGENCY"
+    }
   });
+
+  const selectedRole = watch("role");
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
@@ -33,6 +48,8 @@ export default function Register() {
       await api.post("/auth/register/", {
         email: data.email,
         password: data.password,
+        role: data.role,
+        ...(data.role === "AGENCY" && data.company_name ? { company_name: data.company_name } : {})
       });
       
       setSuccess(true);
@@ -71,13 +88,37 @@ export default function Register() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <label className={`cursor-pointer p-3 border rounded-xl text-center font-medium text-sm transition-all ${selectedRole === 'CUSTOMER' ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border hover:bg-secondary/50'}`}>
+              <input type="radio" value="CUSTOMER" {...register("role")} className="hidden" />
+              Customer
+            </label>
+            <label className={`cursor-pointer p-3 border rounded-xl text-center font-medium text-sm transition-all ${selectedRole === 'AGENCY' ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border hover:bg-secondary/50'}`}>
+              <input type="radio" value="AGENCY" {...register("role")} className="hidden" />
+              Agency
+            </label>
+          </div>
+
+          {selectedRole === 'AGENCY' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Agency / Company Name</label>
+              <input 
+                type="text" 
+                {...register("company_name")}
+                className="w-full p-2.5 bg-input border border-border rounded-lg focus:ring-2 focus:ring-ring outline-none transition-all"
+                placeholder="Al-Rabb Travels Ltd."
+              />
+              {errors.company_name && <p className="text-destructive text-xs">{errors.company_name.message}</p>}
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Email Address</label>
             <input 
               type="email" 
               {...register("email")}
               className="w-full p-2.5 bg-input border border-border rounded-lg focus:ring-2 focus:ring-ring outline-none transition-all"
-              placeholder="agency@example.com"
+              placeholder="name@example.com"
             />
             {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
           </div>
