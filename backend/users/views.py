@@ -81,7 +81,7 @@ class AdminUserListView(generics.ListAPIView):
         return queryset
 
 
-class AdminUserDetailView(generics.RetrieveUpdateAPIView):
+class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AdminUserSerializer
     lookup_field = 'id'
 

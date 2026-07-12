@@ -4,15 +4,42 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Users, Building2, ClipboardList, CheckCircle, XCircle, Bell, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 
+import { MoreVertical, Trash2, ShieldCheck, Power, PowerOff } from 'lucide-react';
+
 function DashboardHome() {
+  const [metrics, setMetrics] = useState({ requests: '-', agencies: '-', customers: '-' });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [reqRes, agRes, custRes] = await Promise.all([
+          api.get('/travel-requests/'),
+          api.get('/auth/users/?role=AGENCY'),
+          api.get('/auth/users/?role=CUSTOMER')
+        ]);
+        setMetrics({
+          requests: reqRes.data.count?.toString() || '0',
+          agencies: agRes.data.count?.toString() || '0',
+          customers: custRes.data.count?.toString() || '0'
+        });
+      } catch (err) {
+        console.error("Failed to fetch metrics", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Admin Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Total Requests', value: '1,234', icon: ClipboardList, color: 'text-blue-500' },
-          { label: 'Active Agencies', value: '56', icon: Building2, color: 'text-green-500' },
-          { label: 'Registered Customers', value: '892', icon: Users, color: 'text-purple-500' },
+          { label: 'Total Requests', value: metrics.requests, icon: ClipboardList, color: 'text-blue-500' },
+          { label: 'Active Agencies', value: metrics.agencies, icon: Building2, color: 'text-green-500' },
+          { label: 'Registered Customers', value: metrics.customers, icon: Users, color: 'text-purple-500' },
         ].map((stat, i) => (
           <div key={i} className="bg-card p-6 rounded-xl border border-border shadow-sm flex items-center gap-4">
             <div className={`p-3 rounded-lg bg-secondary ${stat.color}`}>
@@ -20,7 +47,9 @@ function DashboardHome() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold">{stat.value}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? <span className="animate-pulse bg-secondary/50 rounded h-6 w-12 inline-block"></span> : stat.value}
+              </p>
             </div>
           </div>
         ))}
@@ -38,27 +67,51 @@ function DashboardHome() {
 function UserManagement({ title, role }: { title: string, role?: string }) {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const fetchUsers = async () => {
+    try {
+      const url = role ? `/auth/users/?role=${role}` : `/auth/users/`;
+      const res = await api.get(url);
+      setUsers(res.data.results || res.data);
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const url = role ? `/auth/users/?role=${role}` : `/auth/users/`;
-        const res = await api.get(url);
-        setUsers(res.data.results || res.data);
-      } catch (err) {
-        console.error("Failed to fetch users", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchUsers();
   }, [role]);
+
+  const handleAction = async (userId: string, action: 'verify' | 'toggle_active' | 'delete') => {
+    setOpenDropdownId(null);
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      
+      if (action === 'delete') {
+        if (!confirm("Are you sure you want to permanently delete this user? This cannot be undone.")) return;
+        await api.delete(`/auth/users/${userId}/`);
+      } else if (action === 'verify') {
+        await api.patch(`/auth/users/${userId}/`, { is_verified: !user.is_verified });
+      } else if (action === 'toggle_active') {
+        await api.patch(`/auth/users/${userId}/`, { is_active: !user.is_active });
+      }
+      // Refresh list
+      fetchUsers();
+    } catch (err) {
+      console.error(`Action ${action} failed:`, err);
+      alert("An error occurred while performing the action.");
+    }
+  };
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{title}</h1>
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-visible min-h-[400px]">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-medium border-b border-border">
               <tr>
@@ -67,7 +120,7 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Verification</th>
-                <th className="px-6 py-4">Joined</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -87,7 +140,7 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
                 </tr>
               ) : (
                 users.map((u) => (
-                  <tr key={u.id} className="hover:bg-secondary/30 transition-colors">
+                  <tr key={u.id} className="hover:bg-secondary/30 transition-colors relative">
                     <td className="px-6 py-4 font-medium text-xs font-mono">{u.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-medium">{u.email}</td>
                     <td className="px-6 py-4">{u.role}</td>
@@ -109,7 +162,47 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
                         <span className="text-amber-600 font-medium">Unverified</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right relative">
+                      <button 
+                        onClick={() => setOpenDropdownId(openDropdownId === u.id ? null : u.id)}
+                        className="p-2 hover:bg-secondary rounded-full transition-colors"
+                      >
+                        <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                      </button>
+                      
+                      {openDropdownId === u.id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setOpenDropdownId(null)}
+                          />
+                          <div className="absolute right-8 top-12 w-48 bg-card border border-border shadow-lg rounded-xl z-50 overflow-hidden py-1">
+                            <button 
+                              onClick={() => handleAction(u.id, 'verify')}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-foreground"
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                              {u.is_verified ? 'Unverify User' : 'Verify User'}
+                            </button>
+                            <button 
+                              onClick={() => handleAction(u.id, 'toggle_active')}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-foreground"
+                            >
+                              {u.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                              {u.is_active ? 'Deactivate User' : 'Activate User'}
+                            </button>
+                            <div className="h-px bg-border my-1" />
+                            <button 
+                              onClick={() => handleAction(u.id, 'delete')}
+                              className="w-full px-4 py-2 text-left text-sm hover:bg-destructive/10 text-destructive flex items-center gap-2 font-medium"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete Permanently
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
