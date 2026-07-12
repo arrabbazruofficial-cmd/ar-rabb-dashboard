@@ -63,7 +63,7 @@ export default function AirTicketForm() {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('request', requestId);
-          await api.post('/attachments/', formData, {
+          await api.post('/requests/attachments/', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
         }
