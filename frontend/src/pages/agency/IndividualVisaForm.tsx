@@ -5,7 +5,7 @@ import * as z from 'zod';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { cn } from '@/lib/utils';
 
 const baseSchema = z.object({
@@ -36,13 +36,17 @@ type FormValues = z.infer<typeof formSchema>;
 export default function IndividualVisaForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const editData = location.state?.editData;
+  const isEditing = !!editData;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'NORMAL' | 'IQAMA'>('NORMAL');
+  const [activeTab, setActiveTab] = useState<'NORMAL' | 'IQAMA'>(editData?.individual_visa?.visa_subtype || 'NORMAL');
 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: editData?.individual_visa || {
       visa_subtype: 'NORMAL',
       number_of_passengers: 1,
       stay_days: 1
@@ -54,10 +58,29 @@ export default function IndividualVisaForm() {
     try {
       const payload = {
         request_type: 'INDIVIDUAL_VISA',
-        individual_visa: data,
-        attachments: attachments
+        individual_visa: data
       };
-      await api.post('/requests/', payload);
+      
+      let requestId = editData?.id;
+
+      if (isEditing) {
+        await api.patch(`/requests/${requestId}/`, payload);
+      } else {
+        const res = await api.post('/requests/', payload);
+        requestId = res.data.id;
+      }
+
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('request', requestId);
+          await api.post('/attachments/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
+      }
+
       toast('Individual Visa request submitted successfully!', 'success');
       navigate('/agency/requests');
     } catch (error) {

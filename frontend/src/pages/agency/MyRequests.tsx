@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { FileText, Search, Filter, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router';
 
 function RequestDetailsModal({ request, onClose }: { request: any, onClose: () => void }) {
   if (!request) return null;
@@ -155,6 +156,7 @@ export default function MyRequests() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -240,8 +242,21 @@ export default function MyRequests() {
                         {req.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
                       <button onClick={() => setSelectedRequest(req)} className="text-primary hover:underline font-medium text-xs">View Details</button>
+                      
+                      {req.status !== 'COMPLETED' && req.status !== 'REJECTED' && (
+                        <button 
+                          onClick={() => {
+                            if (req.request_type === 'GROUP_VISA') navigate('/agency/group-visa', { state: { editData: req } });
+                            if (req.request_type === 'INDIVIDUAL_VISA') navigate('/agency/individual-visa', { state: { editData: req } });
+                            if (req.request_type === 'AIR_TICKET') navigate('/agency/air-ticket', { state: { editData: req } });
+                          }}
+                          className="text-amber-600 hover:underline font-medium text-xs flex items-center gap-1"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

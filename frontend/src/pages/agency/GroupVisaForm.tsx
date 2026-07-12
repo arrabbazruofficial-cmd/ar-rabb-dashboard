@@ -6,7 +6,7 @@ import { FileUpload } from '@/components/ui/FileUpload';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 
 const hotelSchema = z.object({
   city: z.enum(['MAKKAH', 'MADINAH']),
@@ -42,12 +42,16 @@ type FormValues = z.infer<typeof formSchema>;
 export default function GroupVisaForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const editData = location.state?.editData;
+  const isEditing = !!editData;
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
 
   const { register, control, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: editData?.group_visa || {
       hotels: [{ city: 'MAKKAH', hotel_name: '', room_type: 'QUAD', room_count: 1, check_in: '', check_out: '' }],
       transports: [{ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' }]
     }
@@ -68,10 +72,33 @@ export default function GroupVisaForm() {
     try {
       const payload = {
         request_type: 'GROUP_VISA',
-        group_visa: data,
-        attachments: attachments
+        group_visa: data
       };
-      await api.post('/requests/', payload);
+      
+      let requestId = editData?.id;
+      
+      if (isEditing) {
+        await api.patch(`/requests/${requestId}/`, payload);
+      } else {
+        const res = await api.post('/requests/', payload);
+        requestId = res.data.id;
+      }
+
+      // 2. Upload attachments if any
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('request', requestId);
+          
+          await api.post('/attachments/', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+        }
+      }
+
       toast('Group Visa request submitted successfully!', 'success');
       navigate('/agency/requests');
     } catch (error) {

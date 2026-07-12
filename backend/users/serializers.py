@@ -25,10 +25,18 @@ class UserSerializer(serializers.ModelSerializer):
 
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serializer for admins to manage users — can update role, is_active, is_verified."""
+    company_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'role', 'is_active', 'is_verified', 'is_staff', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'email', 'created_at', 'updated_at')
+        fields = ('id', 'email', 'role', 'company_name', 'is_active', 'is_verified', 'is_staff', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'email', 'company_name', 'created_at', 'updated_at')
+        
+    def get_company_name(self, obj):
+        if obj.role == 'AGENCY':
+            agency = getattr(obj, 'agency_profile', None)
+            return agency.company_name if agency else 'Unknown Agency'
+        return None
 
 
 class RegisterSerializer(serializers.ModelSerializer):

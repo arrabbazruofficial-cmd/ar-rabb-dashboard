@@ -108,5 +108,26 @@ class BaseRequestSerializer(serializers.ModelSerializer):
             instance.admin_notes = validated_data['admin_notes']
         if 'assigned_to' in validated_data:
             instance.assigned_to = validated_data['assigned_to']
+            
+        # Handle deep updates for edit requests
+        group_visa_data = validated_data.pop('group_visa_details', None)
+        individual_visa_data = validated_data.pop('individual_visa_details', None)
+        air_ticket_data = validated_data.pop('air_ticket_details', None)
+
+        if group_visa_data and instance.request_type == 'GROUP_VISA':
+            if hasattr(instance, 'group_visa_details'):
+                instance.group_visa_details.delete()
+            GroupVisaSerializer().create({**group_visa_data, 'request': instance})
+
+        if individual_visa_data and instance.request_type == 'INDIVIDUAL_VISA':
+            if hasattr(instance, 'individual_visa_details'):
+                instance.individual_visa_details.delete()
+            IndividualVisaSerializer().create({**individual_visa_data, 'request': instance})
+
+        if air_ticket_data and instance.request_type == 'AIR_TICKET':
+            if hasattr(instance, 'air_ticket_details'):
+                instance.air_ticket_details.delete()
+            AirTicketSerializer().create({**air_ticket_data, 'request': instance})
+
         instance.save()
         return instance

@@ -5,7 +5,7 @@ import * as z from 'zod';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 
 const formSchema = z.object({
   origin: z.string().min(1, 'Origin required'),
@@ -25,12 +25,16 @@ type FormValues = z.infer<typeof formSchema>;
 export default function AirTicketForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const editData = location.state?.editData;
+  const isEditing = !!editData;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: editData?.air_ticket || {
       passengers: 1,
       wheelchair_required: false,
       meal_preference: 'NONE'
@@ -42,10 +46,29 @@ export default function AirTicketForm() {
     try {
       const payload = {
         request_type: 'AIR_TICKET',
-        air_ticket: data,
-        attachments: attachments
+        air_ticket: data
       };
-      await api.post('/requests/', payload);
+      
+      let requestId = editData?.id;
+
+      if (isEditing) {
+        await api.patch(`/requests/${requestId}/`, payload);
+      } else {
+        const res = await api.post('/requests/', payload);
+        requestId = res.data.id;
+      }
+
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('request', requestId);
+          await api.post('/attachments/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
+      }
+
       toast('Air Ticket request submitted successfully!', 'success');
       navigate('/agency/requests');
     } catch (error) {

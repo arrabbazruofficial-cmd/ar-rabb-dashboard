@@ -117,7 +117,7 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
               <tr>
                 <th className="px-6 py-4">User ID</th>
                 <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Role</th>
+                {role === 'AGENCY' && <th className="px-6 py-4">Agency Name</th>}
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Verification</th>
                 <th className="px-6 py-4 text-right">Actions</th>
@@ -126,14 +126,14 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={role === 'AGENCY' ? 6 : 5} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     Loading users...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={role === 'AGENCY' ? 6 : 5} className="px-6 py-12 text-center text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
                     <p>No users found.</p>
                   </td>
@@ -143,7 +143,7 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
                   <tr key={u.id} className="hover:bg-secondary/30 transition-colors relative">
                     <td className="px-6 py-4 font-medium text-xs font-mono">{u.id.split('-')[0]}...</td>
                     <td className="px-6 py-4 font-medium">{u.email}</td>
-                    <td className="px-6 py-4">{u.role}</td>
+                    {role === 'AGENCY' && <td className="px-6 py-4 text-primary font-semibold">{u.company_name || '—'}</td>}
                     <td className="px-6 py-4">
                       {u.is_active ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
@@ -536,14 +536,70 @@ function SettingsPage() {
 }
 
 function NotificationsPage() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications/');
+      setNotifications(res.data.results || res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch notifications', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    try {
+      await api.patch(`/notifications/${id}/read/`);
+      setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error('Failed to mark read', error);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       <h1 className="text-2xl font-bold">Admin Notifications</h1>
-      <div className="bg-card border border-border rounded-xl shadow-sm p-6 text-center py-12">
-        <Bell className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
-        <h3 className="text-lg font-medium text-muted-foreground">No new notifications</h3>
-        <p className="text-sm text-muted-foreground/70 mt-1">System alerts and request updates will appear here.</p>
-      </div>
+      
+      {isLoading ? (
+        <div className="bg-card border border-border rounded-xl shadow-sm p-12 text-center text-muted-foreground">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          Loading notifications...
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl shadow-sm p-6 text-center py-12">
+          <Bell className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground">No new notifications</h3>
+          <p className="text-sm text-muted-foreground/70 mt-1">System alerts and request updates will appear here.</p>
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+          <div className="divide-y divide-border">
+            {notifications.map((n) => (
+              <div key={n.id} className={`p-4 flex items-start gap-4 transition-colors hover:bg-secondary/20 ${!n.read ? 'bg-primary/5' : ''}`}>
+                <div className={`p-2 rounded-full ${!n.read ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className={`text-sm ${!n.read ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{n.message}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                </div>
+                {!n.read && (
+                  <button onClick={() => markAsRead(n.id)} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+                    Mark as read
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
