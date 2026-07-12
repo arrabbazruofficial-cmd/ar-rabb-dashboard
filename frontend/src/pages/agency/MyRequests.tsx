@@ -1,11 +1,100 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { FileText, Search, Filter } from 'lucide-react';
+import { FileText, Search, Filter, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+function RequestDetailsModal({ request, onClose }: { request: any, onClose: () => void }) {
+  if (!request) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card border border-border shadow-xl rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10">
+          <h2 className="text-xl font-bold">Request Details</h2>
+          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full">
+            <XCircle className="w-5 h-5 text-muted-foreground" />
+          </button>
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground font-medium">Request ID</p>
+              <p className="font-mono">{request.id}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground font-medium">Type</p>
+              <p>{request.request_type.replace('_', ' ')}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground font-medium">Status</p>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground border border-border mt-1">
+                {request.status.replace('_', ' ')}
+              </span>
+            </div>
+            <div>
+              <p className="text-muted-foreground font-medium">Submitted By</p>
+              <p>{request.agency ? request.agency.company_name : request.customer ? request.customer.email : 'Unknown'}</p>
+            </div>
+          </div>
+
+          <div className="h-px bg-border" />
+
+          {request.request_type === 'GROUP_VISA' && request.group_visa && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Group Visa Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
+                <div><span className="text-muted-foreground">Passengers:</span> {request.group_visa.number_of_passengers}</div>
+                <div><span className="text-muted-foreground">Country:</span> {request.group_visa.country_code}</div>
+                <div><span className="text-muted-foreground">Travel Date:</span> {request.group_visa.travel_date}</div>
+                <div><span className="text-muted-foreground">Flight Code:</span> {request.group_visa.flight_code}</div>
+                <div><span className="text-muted-foreground">Leader:</span> {request.group_visa.group_leader_name}</div>
+                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.group_visa.saudi_number}</div>
+                <div className="col-span-2"><span className="text-muted-foreground">Itinerary:</span> {request.group_visa.flight_itinerary}</div>
+              </div>
+            </div>
+          )}
+
+          {request.request_type === 'INDIVIDUAL_VISA' && request.individual_visa && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Individual Visa Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
+                <div><span className="text-muted-foreground">Visa Type:</span> {request.individual_visa.visa_subtype}</div>
+                <div><span className="text-muted-foreground">Passengers:</span> {request.individual_visa.number_of_passengers}</div>
+                <div><span className="text-muted-foreground">Stay Days:</span> {request.individual_visa.stay_days}</div>
+                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.individual_visa.saudi_number}</div>
+                <div><span className="text-muted-foreground">Arrival:</span> {request.individual_visa.arrival_flight}</div>
+                <div><span className="text-muted-foreground">Departure:</span> {request.individual_visa.departure_flight}</div>
+                <div className="col-span-2"><span className="text-muted-foreground">Address:</span> {request.individual_visa.national_address}</div>
+              </div>
+            </div>
+          )}
+
+          {request.request_type === 'AIR_TICKET' && request.air_ticket && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Air Ticket Information</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
+                <div><span className="text-muted-foreground">Origin:</span> {request.air_ticket.origin}</div>
+                <div><span className="text-muted-foreground">Destination:</span> {request.air_ticket.destination}</div>
+                <div><span className="text-muted-foreground">Departure:</span> {request.air_ticket.departure_date}</div>
+                <div><span className="text-muted-foreground">Return:</span> {request.air_ticket.arrival_date || 'N/A'}</div>
+                <div><span className="text-muted-foreground">Passengers:</span> {request.air_ticket.passengers}</div>
+                <div><span className="text-muted-foreground">Airline:</span> {request.air_ticket.preferred_airline || 'Any'}</div>
+                <div><span className="text-muted-foreground">Luggage:</span> {request.air_ticket.luggage_weight}</div>
+                <div><span className="text-muted-foreground">Wheelchair:</span> {request.air_ticket.wheelchair_required ? 'Yes' : 'No'}</div>
+                <div className="col-span-2"><span className="text-muted-foreground">Notes:</span> {request.air_ticket.additional_notes || 'None'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function MyRequests() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -92,7 +181,7 @@ export default function MyRequests() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-primary hover:underline font-medium text-xs">View Details</button>
+                      <button onClick={() => setSelectedRequest(req)} className="text-primary hover:underline font-medium text-xs">View Details</button>
                     </td>
                   </tr>
                 ))
@@ -108,6 +197,8 @@ export default function MyRequests() {
           </div>
         </div>
       </div>
+
+      <RequestDetailsModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />
     </div>
   );
 }
