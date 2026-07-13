@@ -34,7 +34,7 @@ function DashboardHome() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">Admin Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           { label: 'Total Requests', value: metrics.requests, icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -599,7 +599,7 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
 function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
-      <h1 className="text-2xl font-bold">System Settings</h1>
+      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">System Settings</h1>
       <div className="card-panel p-6">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><Settings className="w-5 h-5"/> General Configuration</h2>
         <div className="space-y-4">
@@ -650,7 +650,7 @@ function NotificationsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <h1 className="text-2xl font-bold">Admin Notifications</h1>
+      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">Admin Notifications</h1>
       
       {isLoading ? (
         <div className="card-panel p-12 text-center text-muted-foreground">

@@ -55,7 +55,7 @@ function DashboardHome() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <h1 className="text-2xl font-bold">Agency Dashboard</h1>
+      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">Agency Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           { label: 'Active Visas', value: metrics.activeVisas, icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },

@@ -63,9 +63,9 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen w-full bg-gradient-to-b from-[#FF7A00] to-[#FF4500] text-foreground overflow-hidden font-sans relative">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-gradient-to-b from-[#FF7A00] to-[#FF4500] text-foreground overflow-hidden font-sans relative">
       {/* Sidebar (Hidden on Mobile) */}
-      <aside className="hidden md:flex inset-y-0 left-0 z-40 w-[280px] flex-col bg-transparent text-white relative">
+      <aside className="hidden md:flex inset-y-0 left-0 z-40 w-[280px] flex-col bg-transparent text-white relative shrink-0">
         <div className="p-8 pb-4">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Al-Rabb Tours Logo" className="w-10 h-10 object-contain drop-shadow-sm brightness-0 invert" />
@@ -119,8 +119,24 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
         </div>
       </aside>
 
+      {/* Mobile Top Header */}
+      <header className="md:hidden flex items-center justify-between p-4 px-6 text-white shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain brightness-0 invert drop-shadow-sm" />
+          <h1 className="text-lg font-bold font-heading tracking-tight">Al-Rabb</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <NotificationBell />
+          {user && (
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm backdrop-blur-md border border-white/30 shadow-sm">
+              {user.email.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+      </header>
+
       {/* Main Content Area (The Tuck) */}
-      <main className="flex-1 overflow-y-auto bg-background md:rounded-l-[32px] md:my-4 md:mr-4 md:shadow-[-8px_0_30px_rgba(0,0,0,0.1)] transition-all duration-300 relative z-10 flex flex-col pb-24 md:pb-0">
+      <main className="flex-1 overflow-y-auto bg-background rounded-t-[32px] md:rounded-t-none md:rounded-l-[32px] md:my-4 md:mr-4 shadow-[0_-8px_30px_rgba(0,0,0,0.1)] md:shadow-[-8px_0_30px_rgba(0,0,0,0.1)] transition-all duration-300 relative z-10 flex flex-col pb-24 md:pb-0">
         <div className="flex-1 p-6 md:p-10 relative">
           {children}
         </div>
