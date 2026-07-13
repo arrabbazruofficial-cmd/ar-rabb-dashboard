@@ -66,13 +66,14 @@ class BaseRequestSerializer(serializers.ModelSerializer):
     attachments = AttachmentSerializer(many=True, read_only=True)
     agency_details = AgencySerializer(source='agency', read_only=True)
     assigned_to_details = UserSerializer(source='assigned_to', read_only=True)
+    customer_details = UserSerializer(source='customer', read_only=True)
 
     class Meta:
         model = BaseRequest
         fields = (
             'id', 'request_type', 'agency', 'customer', 'status', 'assigned_to', 
             'admin_notes', 'created_at', 'updated_at', 'group_visa', 'individual_visa', 
-            'air_ticket', 'attachments', 'agency_details', 'assigned_to_details'
+            'air_ticket', 'attachments', 'agency_details', 'assigned_to_details', 'customer_details'
         )
         read_only_fields = ('id', 'created_at', 'updated_at', 'agency', 'customer')
 

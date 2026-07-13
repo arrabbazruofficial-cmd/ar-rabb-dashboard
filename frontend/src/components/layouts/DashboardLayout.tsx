@@ -20,7 +20,6 @@ const getAgencySidebar = (): SidebarItem[] => [
   { icon: Shield, label: 'Individual Visa', href: '/agency/individual-visa' },
   { icon: Plane, label: 'Air Ticket Booking', href: '/agency/air-ticket' },
   { icon: ClipboardList, label: 'My Requests', href: '/agency/requests' },
-  { icon: Bell, label: 'Notifications', href: '/agency/notifications' },
   { icon: User, label: 'Profile', href: '/agency/profile' },
 ];
 
@@ -28,7 +27,6 @@ const getCustomerSidebar = (): SidebarItem[] => [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/customer' },
   { icon: Plane, label: 'Book Air Ticket', href: '/customer/book-ticket' },
   { icon: ClipboardList, label: 'My Requests', href: '/customer/requests' },
-  { icon: Bell, label: 'Notifications', href: '/customer/notifications' },
   { icon: User, label: 'Profile', href: '/customer/profile' },
 ];
 
@@ -39,7 +37,6 @@ const getAdminSidebar = (): SidebarItem[] => [
   { icon: FileText, label: 'Visa Requests', href: '/admin/visas' },
   { icon: Plane, label: 'Ticket Requests', href: '/admin/tickets' },
   { icon: ClipboardList, label: 'All Requests', href: '/admin/requests' },
-  { icon: Bell, label: 'Notifications', href: '/admin/notifications' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 

@@ -534,7 +534,7 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
                     </td>
                     <td className="px-6 py-4 font-medium text-xs font-mono">{r.id.split('-')[0]}</td>
                     <td className="px-6 py-4 font-medium">{r.request_type.replace('_', ' ')}</td>
-                    <td className="px-6 py-4">{r.agency ? r.agency.company_name : r.customer ? r.customer.email : 'Unknown'}</td>
+                    <td className="px-6 py-4">{r.agency_details ? r.agency_details.company_name : r.customer_details ? r.customer_details.email : 'Unknown'}</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground border border-border">
                         {r.status.replace('_', ' ')}
