@@ -66,10 +66,10 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={dropdownRef}>
       <div 
-        className="cursor-pointer hover:bg-secondary/50 p-2 rounded-full transition-colors relative"
+        className="cursor-pointer hover:bg-white/10 p-2 rounded-full transition-all duration-200 relative"
         onClick={toggleDropdown}
       >
-        <Bell className="w-5 h-5 text-muted-foreground" />
+        <Bell className="w-5 h-5 text-white/80 hover:text-white transition-colors" />
         {unreadCount > 0 && (
           <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-destructive rounded-full ring-2 ring-background" />
         )}

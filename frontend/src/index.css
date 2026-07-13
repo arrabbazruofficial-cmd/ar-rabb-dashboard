@@ -1,111 +1,142 @@
 @import "tailwindcss";
 
 @theme {
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Manrope', sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 40 33% 98%; /* Soft warm white */
-    --foreground: 20 14% 15%; /* Dark brownish-grey */
+    --background: #f8f9fa;
+    --foreground: #191c1d;
 
-    --card: 0 0% 100%;
-    --card-foreground: 20 14% 15%;
+    --card: #ffffff;
+    --card-foreground: #191c1d;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 15%;
+    --popover: #ffffff;
+    --popover-foreground: #191c1d;
 
-    /* Elegant orange gradient accents inspired by sunrise and desert light */
-    --primary: 28 85% 55%; /* Rich Orange */
-    --primary-foreground: 0 0% 100%;
+    --primary: #855300;
+    --primary-foreground: #ffffff;
 
-    --secondary: 35 30% 90%; /* Light warm beige */
-    --secondary-foreground: 24 10% 20%;
+    --secondary: #0051d5;
+    --secondary-foreground: #ffffff;
 
-    --muted: 35 20% 94%;
-    --muted-foreground: 25 10% 45%;
+    --muted: #e1e3e4;
+    --muted-foreground: #534434;
 
-    --accent: 25 80% 95%; /* Very light orange tint */
-    --accent-foreground: 28 85% 45%;
+    --accent: #f3f4f5;
+    --accent-foreground: #0051d5;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: #ba1a1a;
+    --destructive-foreground: #ffffff;
 
-    --border: 35 15% 88%;
-    --input: 35 15% 88%;
-    --ring: 28 85% 55%;
+    --border: #867461;
+    --input: #f3f4f6;
+    --ring: #0051d5;
 
-    --radius: 1rem; /* 16px radius for soft, modern corners */
+    --radius: 1rem;
   }
 
   .dark {
-    --background: 20 14% 10%;
-    --foreground: 40 33% 95%;
+    --background: #191c1d;
+    --foreground: #f8f9fa;
 
-    --card: 20 12% 14%;
-    --card-foreground: 40 33% 95%;
+    --card: #2e3132;
+    --card-foreground: #f8f9fa;
 
-    --popover: 20 12% 14%;
-    --popover-foreground: 40 33% 95%;
+    --popover: #2e3132;
+    --popover-foreground: #f8f9fa;
 
-    --primary: 28 85% 60%;
-    --primary-foreground: 20 14% 10%;
+    --primary: #ffb95f;
+    --primary-foreground: #2a1700;
 
-    --secondary: 20 10% 20%;
-    --secondary-foreground: 40 33% 95%;
+    --secondary: #b4c5ff;
+    --secondary-foreground: #00174b;
 
-    --muted: 20 10% 20%;
-    --muted-foreground: 25 10% 70%;
+    --muted: #2e3132;
+    --muted-foreground: #d9dadb;
 
-    --accent: 28 40% 20%;
-    --accent-foreground: 28 85% 60%;
+    --accent: #2e3132;
+    --accent-foreground: #b4c5ff;
 
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: #ffdad6;
+    --destructive-foreground: #93000a;
 
-    --border: 20 10% 25%;
-    --input: 20 10% 25%;
-    --ring: 28 85% 60%;
+    --border: #867461;
+    --input: #2e3132;
+    --ring: #b4c5ff;
   }
-}
 
-@layer base {
   * {
     border-color: var(--color-border);
   }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer components {
+  /* Forms & Inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    @apply min-h-[48px] bg-input border-transparent rounded-lg px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all shadow-sm;
+  }
+
+  /* Buttons */
+  button[type="submit"],
+  .btn-primary {
+    @apply min-h-[48px] bg-primary text-primary-foreground px-6 py-2 rounded-lg font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply min-h-[48px] bg-transparent text-secondary border border-secondary px-6 py-2 rounded-lg font-semibold hover:bg-secondary/5 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2;
+  }
+
+  /* Cards */
+  .card-panel {
+    @apply bg-card border border-border rounded-[1.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.04)] overflow-hidden relative;
   }
 }
 

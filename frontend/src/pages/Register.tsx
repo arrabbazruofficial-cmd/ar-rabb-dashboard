@@ -63,16 +63,17 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-map-pattern bg-background">
-      <div className="absolute inset-0 bg-background/90 z-0"></div>
+    <div className="min-h-screen flex items-center justify-center bg-background font-sans relative overflow-hidden py-10">
+      {/* Decorative Brand Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#855300]/5 to-[#0051d5]/5 z-0"></div>
       
-      <div className="relative z-10 w-full max-w-md bg-card p-8 rounded-2xl shadow-xl border border-border">
+      <div className="relative z-10 w-full max-w-md card-panel p-10">
         <div className="flex flex-col items-center mb-8">
           <img src="/logo.png" alt="Al-Rabb Tours" className="w-16 h-16 object-contain mb-4 drop-shadow-sm" />
-          <h1 className="text-2xl font-bold bg-gradient-sunrise bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold font-heading text-primary">
             Create an Account
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Join the enterprise platform</p>
+          <p className="text-sm font-medium text-muted-foreground mt-2 tracking-wide">ENTERPRISE PORTAL</p>
         </div>
 
         {error && (

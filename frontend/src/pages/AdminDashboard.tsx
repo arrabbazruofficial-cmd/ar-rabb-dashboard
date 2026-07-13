@@ -110,8 +110,8 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{title}</h1>
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-visible min-h-[400px]">
+      <div className="card-panel">
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-medium border-b border-border">
               <tr>
@@ -474,8 +474,8 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
           </div>
         )}
       </div>
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-visible min-h-[400px]">
+      <div className="card-panel">
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-medium border-b border-border">
               <tr>
@@ -600,7 +600,7 @@ function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <h1 className="text-2xl font-bold">System Settings</h1>
-      <div className="bg-card border border-border rounded-xl shadow-sm p-6">
+      <div className="card-panel p-6">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><Settings className="w-5 h-5"/> General Configuration</h2>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -653,18 +653,18 @@ function NotificationsPage() {
       <h1 className="text-2xl font-bold">Admin Notifications</h1>
       
       {isLoading ? (
-        <div className="bg-card border border-border rounded-xl shadow-sm p-12 text-center text-muted-foreground">
+        <div className="card-panel p-12 text-center text-muted-foreground">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           Loading notifications...
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-card border border-border rounded-xl shadow-sm p-6 text-center py-12">
+        <div className="card-panel p-6 text-center py-12">
           <Bell className="w-12 h-12 mx-auto text-muted-foreground opacity-30 mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground">No new notifications</h3>
           <p className="text-sm text-muted-foreground/70 mt-1">System alerts and request updates will appear here.</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <div className="card-panel">
           <div className="divide-y divide-border">
             {notifications.map((n) => (
               <div key={n.id} className={`p-4 flex items-start gap-4 transition-colors hover:bg-secondary/20 ${!n.read ? 'bg-primary/5' : ''}`}>
