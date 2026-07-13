@@ -369,6 +369,7 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const fetchRequests = async () => {
     try {
@@ -416,14 +417,82 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
 
   const statusOptions = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'PROCESSING', 'APPROVED', 'REJECTED', 'COMPLETED'];
 
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+    if (selectedIds.length === 0) return;
+    try {
+      await Promise.all(selectedIds.map(id => api.patch(`/requests/${id}/update_status/`, { status: newStatus })));
+      setSelectedIds([]);
+      fetchRequests();
+    } catch (err) {
+      console.error("Failed to update status for some requests", err);
+      alert("Failed to update status for some requests.");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to permanently delete ${selectedIds.length} requests?`)) return;
+    try {
+      await Promise.all(selectedIds.map(id => api.delete(`/requests/${id}/`)));
+      setSelectedIds([]);
+      fetchRequests();
+    } catch (err) {
+      console.error("Failed to delete some requests", err);
+      alert("Failed to delete some requests.");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{title}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">{title}</h1>
+        {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 bg-secondary/50 px-4 py-2 rounded-xl border border-border">
+            <span className="text-sm font-medium whitespace-nowrap">{selectedIds.length} selected</span>
+            <div className="h-4 w-px bg-border mx-1" />
+            <select 
+              className="text-sm bg-card border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onChange={(e) => {
+                if(e.target.value) {
+                  handleBulkStatusUpdate(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>Update Status</option>
+              {statusOptions.map(status => (
+                <option key={status} value={status}>{status.replace('_', ' ')}</option>
+              ))}
+            </select>
+            <button 
+              onClick={handleBulkDelete}
+              className="text-sm text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Trash2 className="w-4 h-4" /> Delete
+            </button>
+          </div>
+        )}
+      </div>
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-visible min-h-[400px]">
           <table className="w-full text-sm text-left">
             <thead className="bg-secondary/50 text-muted-foreground font-medium border-b border-border">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20"
+                    checked={requests.length > 0 && selectedIds.length === requests.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(requests.map(r => r.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-6 py-4">Req ID</th>
                 <th className="px-6 py-4">Type</th>
                 <th className="px-6 py-4">Requester</th>
@@ -434,21 +503,35 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                     Loading requests...
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                     <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
                     <p>No requests found.</p>
                   </td>
                 </tr>
               ) : (
                 requests.map((r) => (
-                  <tr key={r.id} className="hover:bg-secondary/30 transition-colors relative">
+                  <tr key={r.id} className={`hover:bg-secondary/30 transition-colors relative ${selectedIds.includes(r.id) ? 'bg-secondary/10' : ''}`}>
+                    <td className="px-6 py-4 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(prev => [...prev, r.id]);
+                          } else {
+                            setSelectedIds(prev => prev.filter(id => id !== r.id));
+                          }
+                        }}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-medium text-xs font-mono">{r.id.split('-')[0]}</td>
                     <td className="px-6 py-4 font-medium">{r.request_type.replace('_', ' ')}</td>
                     <td className="px-6 py-4">{r.agency ? r.agency.company_name : r.customer ? r.customer.email : 'Unknown'}</td>
