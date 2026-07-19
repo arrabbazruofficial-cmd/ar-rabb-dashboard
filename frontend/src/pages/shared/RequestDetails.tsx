@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router';
 import { api } from '@/lib/api';
 import { 
   ArrowLeft, FileText, AlertCircle, Clock, 
-  Users, Building2, MessageSquare, ChevronDown, ChevronUp, UploadCloud, Download, FileArchive
+  Users, Building2, MessageSquare, ChevronDown, ChevronUp, UploadCloud, FileArchive
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AttachmentManager } from '@/components/ui/AttachmentManager';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -14,7 +13,8 @@ import { useAuth } from '@/lib/auth';
 export default function RequestDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { user } = useAuth();
+  const role = user?.role;
   const [request, setRequest] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedPassenger, setExpandedPassenger] = useState<string | null>(null);

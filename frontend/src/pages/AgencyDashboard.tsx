@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
 import { getDashboardStats } from '@/lib/api';
-import { PieChart, Clock, CheckCircle2, AlertCircle, Send, FileText, ArrowRight, Settings, FileSearch, XCircle } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
