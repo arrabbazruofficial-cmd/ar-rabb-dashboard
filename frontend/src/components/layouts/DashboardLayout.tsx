@@ -71,7 +71,6 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
             <img src="/logo.png" alt="AR-RABB Tours and Travels Logo" className="w-10 h-10 object-contain drop-shadow-sm brightness-0 invert" />
             <div className="flex flex-col justify-center">
               <img src="/LOGO-TEXT(1).png" alt="AR-RABB Tours and Travels" className="h-5 w-auto object-contain brightness-0 invert mb-0.5" />
-              <p className="text-[10px] text-white/70 font-medium tracking-widest pl-1">ENTERPRISE</p>
             </div>
           </div>
         </div>
