@@ -58,3 +58,8 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const getDashboardStats = async () => {
+  const response = await api.get('/requests/dashboard_stats/');
+  return response.data;
+};

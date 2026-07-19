@@ -1,80 +1,132 @@
 import { Routes, Route } from 'react-router';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { FileText, Plane, ClipboardList, Shield } from 'lucide-react';
+import { ClipboardList, Building2 } from 'lucide-react';
 import GroupVisaForm from './agency/GroupVisaForm';
 import IndividualVisaForm from './agency/IndividualVisaForm';
 import AirTicketForm from './agency/AirTicketForm';
 import MyRequests from './agency/MyRequests';
 import AgencyProfile from './agency/AgencyProfile';
+import RequestDetails from './shared/RequestDetails';
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
+import { getDashboardStats } from '@/lib/api';
+import { Clock, CheckCircle2, AlertCircle, Send } from 'lucide-react';
+import { format } from 'date-fns';
+
 function DashboardHome() {
-  const [metrics, setMetrics] = useState({
-    activeVisas: '-',
-    pendingTickets: '-',
-    totalRequests: '-',
-    profileStatus: 'Loading...'
-  });
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const fetchStats = async () => {
       try {
-        const [reqRes, profileRes] = await Promise.all([
-          api.get('/requests/'),
-          api.get('/auth/me/')
-        ]);
-        
-        const requests = reqRes.data.results || reqRes.data || [];
-        const activeVisas = requests.filter((r: any) => 
-          (r.request_type === 'GROUP_VISA' || r.request_type === 'INDIVIDUAL_VISA') && 
-          r.status !== 'COMPLETED' && r.status !== 'REJECTED'
-        ).length;
-        
-        const pendingTickets = requests.filter((r: any) => 
-          r.request_type === 'AIR_TICKET' && r.status !== 'COMPLETED'
-        ).length;
-
-        setMetrics({
-          activeVisas: activeVisas.toString(),
-          pendingTickets: pendingTickets.toString(),
-          totalRequests: reqRes.data.count?.toString() || requests.length.toString(),
-          profileStatus: profileRes.data.is_verified ? 'Verified' : 'Unverified'
-        });
+        const data = await getDashboardStats();
+        setStats(data);
       } catch (err) {
-        console.error("Failed to fetch agency metrics", err);
-        setMetrics(prev => ({ ...prev, profileStatus: 'Error' }));
+        console.error("Failed to fetch dashboard stats", err);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchMetrics();
+    fetchStats();
   }, []);
 
   return (
-    <div className="space-y-6 animate-fade-up">
-      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">Agency Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="space-y-8 animate-fade-up">
+      {/* Welcome Banner */}
+      <div className="bg-primary text-white p-8 rounded-xl shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <h1 className="text-3xl font-bold font-heading mb-2">Agency Operations Portal</h1>
+          <p className="text-primary-foreground/80 max-w-2xl">
+            Submit new travel requests, track visa applications, and monitor the status of your passengers.
+          </p>
+        </div>
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Building2 className="w-48 h-48" />
+        </div>
+      </div>
+
+      {/* Overview Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Active Visas', value: metrics.activeVisas, icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Pending Tickets', value: metrics.pendingTickets, icon: Plane, color: 'text-orange-500', bg: 'bg-orange-50' },
-          { label: 'Total Requests', value: metrics.totalRequests, icon: ClipboardList, color: 'text-green-500', bg: 'bg-green-50' },
-          { label: 'Profile Status', value: metrics.profileStatus, icon: Shield, color: metrics.profileStatus === 'Verified' ? 'text-green-500' : 'text-amber-500', bg: metrics.profileStatus === 'Verified' ? 'bg-green-50' : 'bg-amber-50' },
+          { label: 'Total Requests', value: stats?.total_requests || 0, icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Pending Processing', value: stats?.pending_requests || 0, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'In Progress', value: stats?.processing_requests || 0, icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+          { label: 'Completed', value: stats?.completed_requests || 0, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
         ].map((stat, i) => (
-          <div key={i} className="card-panel p-6 flex items-center gap-4 animate-fade-up" style={{ animationDelay: `${i * 100}ms` }}>
-            <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
-              <stat.icon className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-              <p className={`text-2xl font-bold ${stat.label === 'Profile Status' && stat.value === 'Unverified' ? 'text-amber-500 text-lg' : ''}`}>
-                {isLoading ? <span className="animate-pulse bg-secondary/50 rounded h-6 w-12 inline-block"></span> : stat.value}
-              </p>
+          <div key={i} className={`card-panel p-6 ${stat.border}`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-bold text-foreground">
+                  {isLoading ? <span className="animate-pulse bg-secondary/10 rounded h-8 w-16 inline-block"></span> : stat.value}
+                </h3>
+              </div>
+              <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
+                <stat.icon className="w-5 h-5" />
+              </div>
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Recent Requests Table */}
+          <div className="card-panel p-0 overflow-hidden">
+            <div className="p-6 border-b border-border flex items-center justify-between bg-accent/5">
+              <h2 className="text-lg font-bold font-heading flex items-center gap-2">
+                <Send className="w-5 h-5 text-primary" /> My Recent Requests
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground uppercase bg-secondary/5 border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">ID</th>
+                    <th className="px-6 py-4 font-semibold">Type</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold text-right">Date Submitted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">Loading...</td>
+                    </tr>
+                  ) : stats?.recent_requests?.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">No recent requests.</td>
+                    </tr>
+                  ) : (
+                    stats?.recent_requests?.map((req: any) => (
+                      <tr key={req.id} className="border-b border-border last:border-0 hover:bg-secondary/5 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs font-medium text-primary">{req.id.split('-')[0]}</td>
+                        <td className="px-6 py-4 font-medium text-foreground">{req.request_type.replace('_', ' ')}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                            req.status === 'REJECTED' ? 'bg-rose-100 text-rose-700' :
+                            req.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-muted-foreground whitespace-nowrap">
+                          {format(new Date(req.created_at), 'MMM dd, yyyy')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -160,6 +212,7 @@ export default function AgencyDashboard() {
         <Route path="individual-visa" element={<IndividualVisaForm />} />
         <Route path="air-ticket" element={<AirTicketForm />} />
         <Route path="requests" element={<MyRequests />} />
+        <Route path="requests/:id" element={<RequestDetails />} />
         <Route path="profile" element={<AgencyProfile />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Routes>

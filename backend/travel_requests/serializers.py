@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     BaseRequest, GroupVisa, HotelDetail, TransportDetail, 
-    IndividualVisa, AirTicket, Attachment
+    IndividualVisa, AirTicket, Attachment, Passenger
 )
 from users.serializers import UserSerializer
 from agencies.serializers import AgencySerializer
@@ -12,6 +12,12 @@ class AttachmentSerializer(serializers.ModelSerializer):
         model = Attachment
         fields = '__all__'
         read_only_fields = ('id', 'created_at', 'uploaded_by')
+
+class PassengerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Passenger
+        fields = '__all__'
+        read_only_fields = ('id', 'request', 'created_at', 'updated_at')
 
 
 class HotelDetailSerializer(serializers.ModelSerializer):
@@ -67,13 +73,15 @@ class BaseRequestSerializer(serializers.ModelSerializer):
     agency_details = AgencySerializer(source='agency', read_only=True)
     assigned_to_details = UserSerializer(source='assigned_to', read_only=True)
     customer_details = UserSerializer(source='customer', read_only=True)
+    passengers = PassengerSerializer(many=True, required=False)
 
     class Meta:
         model = BaseRequest
         fields = (
             'id', 'request_type', 'agency', 'customer', 'status', 'assigned_to', 
             'admin_notes', 'created_at', 'updated_at', 'group_visa', 'individual_visa', 
-            'air_ticket', 'attachments', 'agency_details', 'assigned_to_details', 'customer_details'
+            'air_ticket', 'attachments', 'agency_details', 'assigned_to_details', 'customer_details',
+            'passengers'
         )
         read_only_fields = ('id', 'created_at', 'updated_at', 'agency', 'customer')
 
@@ -81,6 +89,7 @@ class BaseRequestSerializer(serializers.ModelSerializer):
         group_visa_data = validated_data.pop('group_visa_details', None)
         individual_visa_data = validated_data.pop('individual_visa_details', None)
         air_ticket_data = validated_data.pop('air_ticket_details', None)
+        passengers_data = validated_data.pop('passengers', [])
 
         request = BaseRequest.objects.create(**validated_data)
 
@@ -99,6 +108,9 @@ class BaseRequestSerializer(serializers.ModelSerializer):
         elif request.request_type == 'AIR_TICKET' and air_ticket_data:
             AirTicket.objects.create(request=request, **air_ticket_data)
 
+        for passenger in passengers_data:
+            Passenger.objects.create(request=request, **passenger)
+
         return request
 
     def update(self, instance, validated_data):
@@ -114,6 +126,7 @@ class BaseRequestSerializer(serializers.ModelSerializer):
         group_visa_data = validated_data.pop('group_visa_details', None)
         individual_visa_data = validated_data.pop('individual_visa_details', None)
         air_ticket_data = validated_data.pop('air_ticket_details', None)
+        passengers_data = validated_data.pop('passengers', None)
 
         if group_visa_data and instance.request_type == 'GROUP_VISA':
             if hasattr(instance, 'group_visa_details'):
@@ -129,6 +142,11 @@ class BaseRequestSerializer(serializers.ModelSerializer):
             if hasattr(instance, 'air_ticket_details'):
                 instance.air_ticket_details.delete()
             AirTicketSerializer().create({**air_ticket_data, 'request': instance})
+
+        if passengers_data is not None:
+            instance.passengers.all().delete()
+            for passenger in passengers_data:
+                Passenger.objects.create(request=instance, **passenger)
 
         instance.save()
         return instance

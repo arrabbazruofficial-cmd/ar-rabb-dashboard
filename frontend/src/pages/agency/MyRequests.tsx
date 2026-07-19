@@ -1,203 +1,27 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { FileText, Search, Filter, XCircle } from 'lucide-react';
+import { FileText, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router';
-
-function RequestDetailsModal({ request, onClose }: { request: any, onClose: () => void }) {
-  if (!request) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card border border-border shadow-xl rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10">
-          <h2 className="text-xl font-bold">Request Details</h2>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full">
-            <XCircle className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground font-medium">Request ID</p>
-              <p className="font-mono">{request.id}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Type</p>
-              <p>{request.request_type.replace('_', ' ')}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Status</p>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground border border-border mt-1">
-                {request.status.replace('_', ' ')}
-              </span>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Submitted By (Agency)</p>
-              <p>{request.agency_details ? request.agency_details.company_name : request.assigned_to_details ? request.assigned_to_details.email : 'Unknown'}</p>
-            </div>
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {request.attachments && request.attachments.length > 0 && (
-            <div className="space-y-3 mb-6">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-muted-foreground" />
-                Uploaded Files
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {request.attachments.map((file: any) => (
-                  <a 
-                    key={file.id} 
-                    href={file.file} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-                  >
-                    <div className="bg-primary/10 p-2 rounded text-primary">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-sm font-medium truncate">{file.file.split('/').pop()}</p>
-                      <p className="text-xs text-muted-foreground">Click to view document</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-              <div className="h-px bg-border my-4" />
-            </div>
-          )}
-
-          {request.request_type === 'GROUP_VISA' && request.group_visa && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Group Visa Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Passengers:</span> {request.group_visa.number_of_passengers}</div>
-                <div><span className="text-muted-foreground">Country:</span> {request.group_visa.country_code}</div>
-                <div><span className="text-muted-foreground">Travel Date:</span> {request.group_visa.travel_date}</div>
-                <div><span className="text-muted-foreground">Flight Code:</span> {request.group_visa.flight_code}</div>
-                <div><span className="text-muted-foreground">Leader:</span> {request.group_visa.group_leader_name}</div>
-                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.group_visa.saudi_number}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Itinerary:</span> {request.group_visa.flight_itinerary}</div>
-              </div>
-
-              {request.group_visa.hotels && request.group_visa.hotels.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Hotels</h4>
-                  <div className="space-y-2">
-                    {request.group_visa.hotels.map((h: any, idx: number) => (
-                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
-                        <div><span className="text-muted-foreground">City:</span> {h.city}</div>
-                        <div><span className="text-muted-foreground">Hotel:</span> {h.hotel_name}</div>
-                        <div><span className="text-muted-foreground">Room:</span> {h.room_type} ({h.room_count} count)</div>
-                        <div><span className="text-muted-foreground">Dates:</span> {h.check_in} to {h.check_out}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {request.group_visa.transports && request.group_visa.transports.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Transports</h4>
-                  <div className="space-y-2">
-                    {request.group_visa.transports.map((t: any, idx: number) => (
-                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
-                        <div><span className="text-muted-foreground">Type:</span> {t.transport_type}</div>
-                        <div><span className="text-muted-foreground">Period:</span> {t.period}</div>
-                        <div className="col-span-2"><span className="text-muted-foreground">Schedule:</span> {t.date} at {t.time}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {request.request_type === 'INDIVIDUAL_VISA' && request.individual_visa && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Individual Visa Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Visa Type:</span> {request.individual_visa.visa_subtype}</div>
-                <div><span className="text-muted-foreground">Passengers:</span> {request.individual_visa.number_of_passengers}</div>
-                <div><span className="text-muted-foreground">Stay Days:</span> {request.individual_visa.stay_days}</div>
-                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.individual_visa.saudi_number}</div>
-                <div><span className="text-muted-foreground">Arrival:</span> {request.individual_visa.arrival_flight}</div>
-                <div><span className="text-muted-foreground">Departure:</span> {request.individual_visa.departure_flight}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Address:</span> {request.individual_visa.national_address}</div>
-              </div>
-            </div>
-          )}
-
-          {request.request_type === 'AIR_TICKET' && request.air_ticket && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Air Ticket Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Origin:</span> {request.air_ticket.origin}</div>
-                <div><span className="text-muted-foreground">Destination:</span> {request.air_ticket.destination}</div>
-                <div><span className="text-muted-foreground">Departure:</span> {request.air_ticket.departure_date}</div>
-                <div><span className="text-muted-foreground">Return:</span> {request.air_ticket.arrival_date || 'N/A'}</div>
-                <div><span className="text-muted-foreground">Passengers:</span> {request.air_ticket.passengers}</div>
-                <div><span className="text-muted-foreground">Airline:</span> {request.air_ticket.preferred_airline || 'Any'}</div>
-                <div><span className="text-muted-foreground">Luggage:</span> {request.air_ticket.luggage_weight}</div>
-                <div><span className="text-muted-foreground">Wheelchair:</span> {request.air_ticket.wheelchair_required ? 'Yes' : 'No'}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Notes:</span> {request.air_ticket.additional_notes || 'None'}</div>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {request.attachments && request.attachments.length > 0 && (
-          <div className="space-y-3 mt-6 pt-6 border-t border-border">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <FileText className="w-5 h-5 text-muted-foreground" />
-              Uploaded Files
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {request.attachments.map((file: any) => (
-                <a 
-                  key={file.id} 
-                  href={file.file || file.file_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-                >
-                  <div className="bg-primary/10 p-2 rounded text-primary">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div className="overflow-hidden">
-                    <p className="text-sm font-medium truncate">{file.file_name || (file.file ? file.file.split('/').pop() : 'Document')}</p>
-                    <p className="text-xs text-muted-foreground">{(file.file_size / 1024).toFixed(1)} KB • Click to view</p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function MyRequests() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
+  const fetchRequests = async () => {
+    try {
+      const res = await api.get('/requests/');
+      setRequests(res.data.results || res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch requests', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const res = await api.get('/requests/');
-        // The API returns a paginated response, so data might be in res.data.results
-        setRequests(res.data.results || res.data || []);
-      } catch (error) {
-        console.error('Failed to fetch requests', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchRequests();
   }, []);
 
@@ -224,7 +48,13 @@ export default function MyRequests() {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Search requests..." className="pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-lg w-full sm:w-64" />
+            <input 
+              type="text" 
+              placeholder="Search requests..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-lg w-full sm:w-64" 
+            />
           </div>
           <button className="p-2 bg-card border border-border rounded-lg hover:bg-secondary">
             <Filter className="w-4 h-4 text-muted-foreground" />
@@ -260,50 +90,42 @@ export default function MyRequests() {
                   </td>
                 </tr>
               ) : (
-                requests.map((req) => (
-                  <tr key={req.id} className="hover:bg-secondary/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-xs font-mono">{req.id.split('-')[0]}...</td>
-                    <td className="px-6 py-4">{req.request_type.replace('_', ' ')}</td>
-                    <td className="px-6 py-4">{new Date(req.created_at).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", getStatusColor(req.status))}>
-                        {req.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                      <button onClick={() => setSelectedRequest(req)} className="text-primary hover:underline font-medium text-xs">View Details</button>
-                      
-                      {req.status !== 'COMPLETED' && req.status !== 'REJECTED' && (
-                        <button 
-                          onClick={() => {
-                            if (req.request_type === 'GROUP_VISA') navigate('/agency/group-visa', { state: { editData: req } });
-                            if (req.request_type === 'INDIVIDUAL_VISA') navigate('/agency/individual-visa', { state: { editData: req } });
-                            if (req.request_type === 'AIR_TICKET') navigate('/agency/air-ticket', { state: { editData: req } });
-                          }}
-                          className="text-amber-600 hover:underline font-medium text-xs flex items-center gap-1"
-                        >
-                          Edit
-                        </button>
-                      )}
+                requests.map((req) => {
+                  let editPath = '';
+                  if (req.request_type === 'GROUP_VISA') editPath = '/agency/group-visa';
+                  else if (req.request_type === 'INDIVIDUAL_VISA') editPath = '/agency/individual-visa';
+                  else if (req.request_type === 'AIR_TICKET') editPath = '/agency/air-ticket';
 
-                      <button 
-                        onClick={async () => {
-                          if (confirm("Are you sure you want to permanently delete this request?")) {
-                            try {
-                              await api.delete(`/requests/${req.id}/`);
-                              setRequests(requests.filter((r) => r.id !== req.id));
-                            } catch (err) {
-                              alert("Failed to delete request.");
-                            }
-                          }
-                        }}
-                        className="text-destructive hover:underline font-medium text-xs flex items-center gap-1"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                  return (
+                    <tr key={req.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-6 py-4 font-medium text-xs font-mono">{req.id.split('-')[0]}...</td>
+                      <td className="px-6 py-4">{req.request_type.replace('_', ' ')}</td>
+                      <td className="px-6 py-4">{new Date(req.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", getStatusColor(req.status))}>
+                          {req.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                        <button 
+                          onClick={() => navigate(`/agency/requests/${req.id}`)} 
+                          className="text-primary hover:underline font-medium text-xs"
+                        >
+                          View Details
+                        </button>
+                        
+                        {req.status !== 'COMPLETED' && req.status !== 'REJECTED' && (
+                          <button 
+                            onClick={() => navigate(editPath, { state: { editData: req } })}
+                            className="text-amber-600 hover:underline font-medium text-xs"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -316,8 +138,6 @@ export default function MyRequests() {
           </div>
         </div>
       </div>
-
-      <RequestDetailsModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />
     </div>
   );
 }

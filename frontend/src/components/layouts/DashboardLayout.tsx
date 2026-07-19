@@ -63,7 +63,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-gradient-to-b from-[#FF7A00] to-[#FF4500] text-foreground overflow-hidden font-sans relative">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-secondary text-foreground overflow-hidden font-sans relative">
       {/* Sidebar (Hidden on Mobile) */}
       <aside className="hidden md:flex inset-y-0 left-0 z-40 w-[280px] flex-col bg-transparent text-white relative shrink-0">
         <div className="p-8 pb-4">

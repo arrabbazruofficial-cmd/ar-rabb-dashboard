@@ -38,33 +38,33 @@
 
 @layer base {
   :root {
-    --background: #f8f9fa;
-    --foreground: #191c1d;
+    --background: #F4F7FB;
+    --foreground: #091E42;
 
-    --card: #ffffff;
-    --card-foreground: #191c1d;
+    --card: #FFFFFF;
+    --card-foreground: #091E42;
 
-    --popover: #ffffff;
-    --popover-foreground: #191c1d;
+    --popover: #FFFFFF;
+    --popover-foreground: #091E42;
 
-    --primary: #ff6b00;
-    --primary-foreground: #ffffff;
+    --primary: #0F62FE;
+    --primary-foreground: #FFFFFF;
 
-    --secondary: #0051d5;
-    --secondary-foreground: #ffffff;
+    --secondary: #001141;
+    --secondary-foreground: #FFFFFF;
 
-    --muted: #e1e3e4;
-    --muted-foreground: #534434;
+    --muted: #EBECF0;
+    --muted-foreground: #5E6C84;
 
-    --accent: #f3f4f5;
-    --accent-foreground: #0051d5;
+    --accent: #F56A00;
+    --accent-foreground: #FFFFFF;
 
-    --destructive: #ba1a1a;
-    --destructive-foreground: #ffffff;
+    --destructive: #E34935;
+    --destructive-foreground: #FFFFFF;
 
-    --border: #867461;
-    --input: #f3f4f6;
-    --ring: #ff6b00;
+    --border: #DFE1E6;
+    --input: #FAFBFC;
+    --ring: #0F62FE;
 
     --radius: 1rem;
   }
@@ -136,11 +136,11 @@
 
   /* Cards */
   .card-panel {
-    @apply bg-card border border-border rounded-[1.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.04)] overflow-hidden relative hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(255,107,0,0.12)] transition-all duration-300;
+    @apply bg-card border border-border rounded-xl shadow-[0_2px_10px_rgba(9,30,66,0.04)] overflow-hidden relative hover:shadow-[0_4px_20px_rgba(9,30,66,0.08)] transition-all duration-300;
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-primary to-[#FF4500] bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent;
   }
 
   .animate-fade-up {

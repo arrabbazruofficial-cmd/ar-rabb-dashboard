@@ -1,63 +1,204 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router';
+import { Routes, Route, useNavigate } from 'react-router';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Users, Building2, ClipboardList, CheckCircle, XCircle, Bell, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
+import RequestDetails from './shared/RequestDetails';
 
-import { MoreVertical, Trash2, ShieldCheck, Power, PowerOff, FileText } from 'lucide-react';
+import { MoreVertical, Trash2, ShieldCheck, Power, PowerOff } from 'lucide-react';
+
+import { getDashboardStats } from '@/lib/api';
+import { PieChart, Clock, CheckCircle2, XCircle, AlertCircle, Send, FileText as FileTextIcon, Activity, MessageSquare, Users, CheckCircle, ClipboardList, Settings, Bell } from 'lucide-react';
+import { format } from 'date-fns';
 
 function DashboardHome() {
-  const [metrics, setMetrics] = useState({ requests: '-', agencies: '-', customers: '-' });
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const fetchStats = async () => {
       try {
-        const [reqRes, agRes, custRes] = await Promise.all([
-          api.get('/requests/'),
-          api.get('/auth/users/?role=AGENCY'),
-          api.get('/auth/users/?role=CUSTOMER')
-        ]);
-        setMetrics({
-          requests: reqRes.data.count?.toString() || '0',
-          agencies: agRes.data.count?.toString() || '0',
-          customers: custRes.data.count?.toString() || '0'
-        });
+        const data = await getDashboardStats();
+        setStats(data);
       } catch (err) {
-        console.error("Failed to fetch metrics", err);
+        console.error("Failed to fetch dashboard stats", err);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchMetrics();
+    fetchStats();
   }, []);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold font-heading gradient-text tracking-tight pb-1">Admin Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="space-y-8 animate-fade-up">
+      {/* Welcome Banner */}
+      <div className="bg-primary text-white p-8 rounded-xl shadow-sm relative overflow-hidden">
+        <div className="relative z-10">
+          <h1 className="text-3xl font-bold font-heading mb-2">Welcome to the Enterprise Operations Center</h1>
+          <p className="text-primary-foreground/80 max-w-2xl">
+            Monitor incoming travel requests, process visas, and manage air tickets efficiently. 
+            All systems are fully operational.
+          </p>
+        </div>
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Activity className="w-48 h-48" />
+        </div>
+      </div>
+
+      {/* Overview Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Requests', value: metrics.requests, icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Active Agencies', value: metrics.agencies, icon: Building2, color: 'text-green-500', bg: 'bg-green-50' },
-          { label: 'Registered Customers', value: metrics.customers, icon: Users, color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'Pending Requests', value: stats?.pending_requests || 0, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'Processing', value: stats?.processing_requests || 0, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Completed', value: stats?.completed_requests || 0, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          { label: 'Rejected', value: stats?.rejected_requests || 0, icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
         ].map((stat, i) => (
-          <div key={i} className="bg-card p-6 rounded-xl border border-border shadow-sm flex items-center gap-4 animate-fade-up" style={{ animationDelay: `${i * 100}ms` }}>
-            <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
-              <stat.icon className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold">
-                {isLoading ? <span className="animate-pulse bg-secondary/50 rounded h-6 w-12 inline-block"></span> : stat.value}
-              </p>
+          <div key={i} className={`card-panel p-6 ${stat.border}`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">{stat.label}</p>
+                <h3 className="text-3xl font-bold text-foreground">
+                  {isLoading ? <span className="animate-pulse bg-secondary/10 rounded h-8 w-16 inline-block"></span> : stat.value}
+                </h3>
+              </div>
+              <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
+                <stat.icon className="w-5 h-5" />
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-6 mt-6">
-        <div className="bg-card p-6 rounded-xl border border-border shadow-sm min-h-[300px]">
-          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-          <div className="text-sm text-muted-foreground">Recent actions and requests will appear here.</div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Request Distribution */}
+          <div className="card-panel p-6">
+            <h2 className="text-lg font-bold font-heading mb-6 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-primary" /> Request Distribution
+            </h2>
+            {isLoading ? (
+               <div className="animate-pulse space-y-4">
+                 {[1,2,3].map(i => <div key={i} className="h-12 bg-secondary/5 rounded"></div>)}
+               </div>
+            ) : (
+              <div className="space-y-4">
+                {[
+                  { label: 'Group Visas', count: stats?.distribution?.group_visa || 0, color: 'bg-blue-500' },
+                  { label: 'Individual Visas', count: stats?.distribution?.individual_visa || 0, color: 'bg-indigo-500' },
+                  { label: 'Air Tickets', count: stats?.distribution?.air_ticket || 0, color: 'bg-sky-500' },
+                ].map((item, i) => {
+                  const total = stats?.total_requests || 1;
+                  const percentage = Math.round((item.count / total) * 100) || 0;
+                  return (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="w-32 text-sm font-medium text-foreground">{item.label}</div>
+                      <div className="flex-1 h-3 bg-secondary/5 rounded-full overflow-hidden">
+                        <div className={`h-full ${item.color} rounded-full`} style={{ width: `${percentage}%` }} />
+                      </div>
+                      <div className="w-12 text-right text-sm font-bold text-muted-foreground">{item.count}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Requests Table */}
+          <div className="card-panel p-0 overflow-hidden">
+            <div className="p-6 border-b border-border flex items-center justify-between bg-accent/5">
+              <h2 className="text-lg font-bold font-heading flex items-center gap-2">
+                <Send className="w-5 h-5 text-primary" /> Recent Requests
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground uppercase bg-secondary/5 border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">ID</th>
+                    <th className="px-6 py-4 font-semibold">Type</th>
+                    <th className="px-6 py-4 font-semibold">Agency/Customer</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold text-right">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">Loading...</td>
+                    </tr>
+                  ) : stats?.recent_requests?.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No recent requests.</td>
+                    </tr>
+                  ) : (
+                    stats?.recent_requests?.map((req: any) => (
+                      <tr key={req.id} className="border-b border-border last:border-0 hover:bg-secondary/5 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs font-medium text-primary">{req.id.split('-')[0]}</td>
+                        <td className="px-6 py-4 font-medium text-foreground">{req.request_type.replace('_', ' ')}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{req.agency_details?.company_name || req.customer_details?.email || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                            req.status === 'REJECTED' ? 'bg-rose-100 text-rose-700' :
+                            req.status === 'PROCESSING' ? 'bg-blue-100 text-blue-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-muted-foreground whitespace-nowrap">
+                          {format(new Date(req.created_at), 'MMM dd, yyyy')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="space-y-8">
+          {/* Quick Actions */}
+          <div className="card-panel p-6">
+            <h2 className="text-lg font-bold font-heading mb-4">Quick Actions</h2>
+            <div className="space-y-3">
+              <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group">
+                <div className="flex items-center gap-3">
+                  <FileTextIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="font-medium text-foreground">Generate Report</span>
+                </div>
+              </button>
+              <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="font-medium text-foreground">Broadcast Message</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Activity Timeline */}
+          <div className="card-panel p-6">
+            <h2 className="text-lg font-bold font-heading mb-6 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" /> Recent Activity
+            </h2>
+            <div className="relative border-l-2 border-secondary/10 ml-3 space-y-6">
+              {[
+                { title: 'New Group Visa Submitted', time: '10 mins ago', desc: 'Agency Al-Huda requested a group visa for 45 pax.' },
+                { title: 'Payment Verified', time: '1 hour ago', desc: 'Ticket payment for Request #4A2B confirmed.' },
+                { title: 'System Update', time: '3 hours ago', desc: 'New passport parsing module deployed.' },
+              ].map((act, i) => (
+                <div key={i} className="relative pl-6">
+                  <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
+                  <p className="text-sm font-bold text-foreground">{act.title}</p>
+                  <p className="text-xs font-medium text-primary mb-1">{act.time}</p>
+                  <p className="text-sm text-muted-foreground">{act.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -214,162 +355,12 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
   );
 }
 
-function RequestDetailsModal({ request, onClose }: { request: any, onClose: () => void }) {
-  if (!request) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card border border-border shadow-xl rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10">
-          <h2 className="text-xl font-bold">Request Details</h2>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full">
-            <XCircle className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground font-medium">Request ID</p>
-              <p className="font-mono">{request.id}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Type</p>
-              <p>{request.request_type.replace('_', ' ')}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Status</p>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary text-secondary-foreground border border-border mt-1">
-                {request.status.replace('_', ' ')}
-              </span>
-            </div>
-            <div>
-              <p className="text-muted-foreground font-medium">Submitted By (Agency)</p>
-              <p>{request.agency_details ? request.agency_details.company_name : request.assigned_to_details ? request.assigned_to_details.email : 'Unknown'}</p>
-            </div>
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {request.attachments && request.attachments.length > 0 && (
-            <div className="space-y-3 mb-6">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-muted-foreground" />
-                Uploaded Files
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {request.attachments.map((file: any) => (
-                  <a 
-                    key={file.id} 
-                    href={file.file || file.file_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-                  >
-                    <div className="bg-primary/10 p-2 rounded text-primary">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-sm font-medium truncate">{file.file_name || (file.file ? file.file.split('/').pop() : 'Document')}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB • ` : ''}Click to view
-                      </p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-              <div className="h-px bg-border my-4" />
-            </div>
-          )}
-
-          {request.request_type === 'GROUP_VISA' && request.group_visa && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Group Visa Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Passengers:</span> {request.group_visa.number_of_passengers}</div>
-                <div><span className="text-muted-foreground">Country:</span> {request.group_visa.country_code}</div>
-                <div><span className="text-muted-foreground">Travel Date:</span> {request.group_visa.travel_date}</div>
-                <div><span className="text-muted-foreground">Flight Code:</span> {request.group_visa.flight_code}</div>
-                <div><span className="text-muted-foreground">Leader:</span> {request.group_visa.group_leader_name}</div>
-                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.group_visa.saudi_number}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Itinerary:</span> {request.group_visa.flight_itinerary}</div>
-              </div>
-
-              {request.group_visa.hotels && request.group_visa.hotels.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Hotels</h4>
-                  <div className="space-y-2">
-                    {request.group_visa.hotels.map((h: any, idx: number) => (
-                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
-                        <div><span className="text-muted-foreground">City:</span> {h.city}</div>
-                        <div><span className="text-muted-foreground">Hotel:</span> {h.hotel_name}</div>
-                        <div><span className="text-muted-foreground">Room:</span> {h.room_type} ({h.room_count} count)</div>
-                        <div><span className="text-muted-foreground">Dates:</span> {h.check_in} to {h.check_out}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {request.group_visa.transports && request.group_visa.transports.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-sm mb-2 text-muted-foreground">Transports</h4>
-                  <div className="space-y-2">
-                    {request.group_visa.transports.map((t: any, idx: number) => (
-                      <div key={idx} className="bg-secondary/20 p-3 rounded border border-border text-xs grid grid-cols-2 gap-2">
-                        <div><span className="text-muted-foreground">Type:</span> {t.transport_type}</div>
-                        <div><span className="text-muted-foreground">Period:</span> {t.period}</div>
-                        <div className="col-span-2"><span className="text-muted-foreground">Schedule:</span> {t.date} at {t.time}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {request.request_type === 'INDIVIDUAL_VISA' && request.individual_visa && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Individual Visa Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Visa Type:</span> {request.individual_visa.visa_subtype}</div>
-                <div><span className="text-muted-foreground">Passengers:</span> {request.individual_visa.number_of_passengers}</div>
-                <div><span className="text-muted-foreground">Stay Days:</span> {request.individual_visa.stay_days}</div>
-                <div><span className="text-muted-foreground">Saudi Phone:</span> {request.individual_visa.saudi_number}</div>
-                <div><span className="text-muted-foreground">Arrival:</span> {request.individual_visa.arrival_flight}</div>
-                <div><span className="text-muted-foreground">Departure:</span> {request.individual_visa.departure_flight}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Address:</span> {request.individual_visa.national_address}</div>
-              </div>
-            </div>
-          )}
-
-          {request.request_type === 'AIR_TICKET' && request.air_ticket && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Air Ticket Information</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-lg border border-border">
-                <div><span className="text-muted-foreground">Origin:</span> {request.air_ticket.origin}</div>
-                <div><span className="text-muted-foreground">Destination:</span> {request.air_ticket.destination}</div>
-                <div><span className="text-muted-foreground">Departure:</span> {request.air_ticket.departure_date}</div>
-                <div><span className="text-muted-foreground">Return:</span> {request.air_ticket.arrival_date || 'N/A'}</div>
-                <div><span className="text-muted-foreground">Passengers:</span> {request.air_ticket.passengers}</div>
-                <div><span className="text-muted-foreground">Airline:</span> {request.air_ticket.preferred_airline || 'Any'}</div>
-                <div><span className="text-muted-foreground">Luggage:</span> {request.air_ticket.luggage_weight}</div>
-                <div><span className="text-muted-foreground">Wheelchair:</span> {request.air_ticket.wheelchair_required ? 'Yes' : 'No'}</div>
-                <div className="col-span-2"><span className="text-muted-foreground">Notes:</span> {request.air_ticket.additional_notes || 'None'}</div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function RequestsManagement({ title, type }: { title: string, type?: string }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const navigate = useNavigate();
 
   const fetchRequests = async () => {
     try {
@@ -542,7 +533,7 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
                     </td>
                     <td className="px-6 py-4 text-right relative">
                       <button 
-                        onClick={() => setSelectedRequest(r)}
+                        onClick={() => navigate(`/admin/requests/${r.id}`)}
                         className="text-primary hover:underline font-medium text-xs mr-4"
                       >
                         View Details
@@ -590,8 +581,6 @@ function RequestsManagement({ title, type }: { title: string, type?: string }) {
           </table>
         </div>
       </div>
-      
-      <RequestDetailsModal request={selectedRequest} onClose={() => setSelectedRequest(null)} />
     </div>
   );
 }
@@ -699,6 +688,7 @@ export default function AdminDashboard() {
         <Route path="requests" element={<RequestsManagement key="all" title="All Requests" />} />
         <Route path="visas" element={<RequestsManagement key="visas" title="Visa Requests" type="GROUP_VISA,INDIVIDUAL_VISA" />} />
         <Route path="tickets" element={<RequestsManagement key="tickets" title="Ticket Requests" type="AIR_TICKET" />} />
+        <Route path="requests/:id" element={<RequestDetails />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>

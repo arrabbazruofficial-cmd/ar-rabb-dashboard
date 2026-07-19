@@ -72,7 +72,7 @@ export default function Register() {
           className="absolute inset-0 w-full h-full object-cover animate-fade-up" 
           style={{ animationDuration: '1.2s' }} 
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#FF7A00]/90 via-[#FF7A00]/20 to-transparent mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-secondary/90 via-secondary/20 to-transparent mix-blend-multiply" />
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute bottom-16 left-16 right-16 text-white animate-fade-up" style={{ animationDelay: '0.3s' }}>
           <h2 className="text-4xl lg:text-5xl font-heading font-bold mb-6 leading-tight drop-shadow-lg">
@@ -87,7 +87,7 @@ export default function Register() {
       {/* Right Pane - Form */}
       <div className="flex items-center justify-center p-8 lg:p-16 relative overflow-y-auto">
         {/* Decorative background element for mobile */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FF7A00]/5 to-transparent z-0 lg:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0 lg:hidden" />
         
         <div className="w-full max-w-md relative z-10 animate-fade-up my-auto" style={{ animationDelay: '0.1s' }}>
           <div className="flex flex-col mb-8">
@@ -110,11 +110,11 @@ export default function Register() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <label className={`cursor-pointer p-4 border rounded-xl text-center font-bold text-sm transition-all shadow-sm ${selectedRole === 'CUSTOMER' ? 'bg-[#FF7A00]/10 border-[#FF7A00] text-[#FF7A00] ring-2 ring-[#FF7A00]/20' : 'bg-card border-border hover:bg-secondary/5 text-muted-foreground'}`}>
+              <label className={`cursor-pointer p-4 border rounded-xl text-center font-bold text-sm transition-all shadow-sm ${selectedRole === 'CUSTOMER' ? 'bg-primary/10 border-primary text-primary ring-2 ring-primary/20' : 'bg-card border-border hover:bg-secondary/5 text-muted-foreground'}`}>
                 <input type="radio" value="CUSTOMER" {...register("role")} className="hidden" />
                 Customer
               </label>
-              <label className={`cursor-pointer p-4 border rounded-xl text-center font-bold text-sm transition-all shadow-sm ${selectedRole === 'AGENCY' ? 'bg-[#FF7A00]/10 border-[#FF7A00] text-[#FF7A00] ring-2 ring-[#FF7A00]/20' : 'bg-card border-border hover:bg-secondary/5 text-muted-foreground'}`}>
+              <label className={`cursor-pointer p-4 border rounded-xl text-center font-bold text-sm transition-all shadow-sm ${selectedRole === 'AGENCY' ? 'bg-primary/10 border-primary text-primary ring-2 ring-primary/20' : 'bg-card border-border hover:bg-secondary/5 text-muted-foreground'}`}>
                 <input type="radio" value="AGENCY" {...register("role")} className="hidden" />
                 Agency
               </label>

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useToast } from '@/components/ui/Toast';
+import { SoftValidationDialog } from '@/components/ui/SoftValidationDialog';
 import { api } from '@/lib/api';
 import { Plus, Trash2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
@@ -24,6 +25,17 @@ const transportSchema = z.object({
   period: z.enum(['FN', 'AN']),
 });
 
+const passengerSchema = z.object({
+  passport_number: z.string().min(1, 'Passport number required'),
+  full_name: z.string().min(1, 'Full name required'),
+  nationality: z.string().min(1, 'Nationality required'),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
+  date_of_birth: z.string().min(1, 'DOB required'),
+  passport_expiry: z.string().min(1, 'Passport expiry required'),
+  is_lead: z.boolean().default(false),
+  contact_number: z.string().optional(),
+});
+
 const formSchema = z.object({
   number_of_passengers: z.coerce.number().min(1, 'Must have at least 1 passenger'),
   flight_itinerary: z.string().min(1, 'Flight itinerary required'),
@@ -35,6 +47,7 @@ const formSchema = z.object({
   saudi_number: z.string().min(1, 'Saudi number required'),
   hotels: z.array(hotelSchema).min(1, 'At least one hotel required'),
   transports: z.array(transportSchema).min(1, 'At least one transport required'),
+  passengers: z.array(passengerSchema).min(1, 'At least one passenger required'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -47,13 +60,15 @@ export default function GroupVisaForm() {
   const isEditing = !!editData;
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, control, handleSubmit, formState: { errors }, getValues } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: editData?.group_visa || {
       hotels: [{ city: 'MAKKAH', hotel_name: '', room_type: 'QUAD', room_count: 1, check_in: '', check_out: '' }],
-      transports: [{ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' }]
+      transports: [{ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' }],
+      passengers: [{ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: true, contact_number: '' }]
     }
   });
 
@@ -67,12 +82,20 @@ export default function GroupVisaForm() {
     name: 'transports'
   });
 
+  const { fields: passengerFields, append: appendPassenger, remove: removePassenger } = useFieldArray({
+    control,
+    name: 'passengers'
+  });
+
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     try {
+      const { passengers, ...groupVisaData } = data;
       const payload = {
         request_type: 'GROUP_VISA',
-        group_visa: data
+        group_visa: groupVisaData,
+        passengers: passengers,
+        status: 'SUBMITTED'
       };
       
       let requestId = editData?.id;
@@ -108,6 +131,53 @@ export default function GroupVisaForm() {
     }
   };
 
+  const onError = () => {
+    setShowIncompleteDialog(true);
+  };
+
+  const submitIncomplete = async () => {
+    setShowIncompleteDialog(false);
+    setIsSubmitting(true);
+    try {
+      const data = getValues();
+      const { passengers, ...groupVisaData } = data as any;
+      
+      const payload = {
+        request_type: 'GROUP_VISA',
+        group_visa: groupVisaData,
+        passengers: passengers || [],
+        status: 'INCOMPLETE'
+      };
+      
+      let requestId = editData?.id;
+      
+      if (isEditing) {
+        await api.patch(`/requests/${requestId}/`, payload);
+      } else {
+        const res = await api.post('/requests/', payload);
+        requestId = res.data.id;
+      }
+
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('request', requestId);
+          await api.post('/requests/attachments/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
+      }
+
+      toast('Group Visa saved as incomplete.', 'success');
+      navigate('/agency/requests');
+    } catch (error) {
+      toast('Failed to save request as incomplete. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <div>
@@ -115,7 +185,7 @@ export default function GroupVisaForm() {
         <p className="text-muted-foreground mt-2">Submit a new group visa request with hotel and transport details.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit as any, onError)} className="space-y-8">
         {/* Basic Details */}
         <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
           <h2 className="text-xl font-semibold mb-6">Group Details</h2>
@@ -160,6 +230,73 @@ export default function GroupVisaForm() {
               <textarea {...register('flight_itinerary')} rows={4} className="w-full p-2.5 bg-input border border-border rounded-lg" />
               {errors.flight_itinerary && <p className="text-xs text-destructive">{errors.flight_itinerary.message}</p>}
             </div>
+          </div>
+        </div>
+
+        {/* Passengers */}
+        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Passengers</h2>
+            <button
+              type="button"
+              onClick={() => appendPassenger({ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: false, contact_number: '' })}
+              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
+            >
+              <Plus className="w-4 h-4" /> Add Passenger
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            {passengerFields.map((field, index) => (
+              <div key={field.id} className="p-4 border border-border rounded-xl relative bg-secondary/10">
+                {index > 0 && (
+                  <button type="button" onClick={() => removePassenger(index)} className="absolute top-4 right-4 text-destructive hover:opacity-80">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Full Name</label>
+                    <input type="text" {...register(`passengers.${index}.full_name` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                    {errors.passengers?.[index]?.full_name && <p className="text-xs text-destructive">{errors.passengers[index]?.full_name?.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Passport Number</label>
+                    <input type="text" {...register(`passengers.${index}.passport_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                    {errors.passengers?.[index]?.passport_number && <p className="text-xs text-destructive">{errors.passengers[index]?.passport_number?.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Nationality</label>
+                    <input type="text" {...register(`passengers.${index}.nationality` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Gender</label>
+                    <select {...register(`passengers.${index}.gender` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Date of Birth</label>
+                    <input type="date" {...register(`passengers.${index}.date_of_birth` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Passport Expiry</label>
+                    <input type="date" {...register(`passengers.${index}.passport_expiry` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                  </div>
+                  <div className="space-y-2 md:col-span-3 flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" {...register(`passengers.${index}.is_lead` as const)} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
+                      <span className="text-sm font-medium">Lead Passenger</span>
+                    </label>
+                    <div className="flex-1">
+                      <input type="text" placeholder="Contact Number (Optional)" {...register(`passengers.${index}.contact_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -295,6 +432,13 @@ export default function GroupVisaForm() {
           </button>
         </div>
       </form>
+
+      <SoftValidationDialog 
+        isOpen={showIncompleteDialog}
+        onClose={() => setShowIncompleteDialog(false)}
+        onConfirm={submitIncomplete}
+        isSubmitting={isSubmitting}
+      />
     </div>
   );
 }

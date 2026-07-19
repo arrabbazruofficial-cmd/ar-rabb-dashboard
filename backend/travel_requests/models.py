@@ -6,6 +6,7 @@ from agencies.models import Agency
 
 class RequestStatus(models.TextChoices):
     DRAFT = 'DRAFT', 'Draft'
+    INCOMPLETE = 'INCOMPLETE', 'Incomplete'
     SUBMITTED = 'SUBMITTED', 'Submitted'
     UNDER_REVIEW = 'UNDER_REVIEW', 'Under Review'
     PROCESSING = 'PROCESSING', 'Processing'
@@ -53,14 +54,14 @@ class GroupVisa(models.Model):
     request = models.OneToOneField(
         BaseRequest, on_delete=models.CASCADE, primary_key=True, related_name='group_visa_details'
     )
-    number_of_passengers = models.IntegerField()
-    flight_itinerary = models.TextField()
-    flight_code = models.CharField(max_length=100)
-    travel_date = models.DateField()
-    country_code = models.CharField(max_length=10)
-    group_leader_name = models.CharField(max_length=255)
-    india_number = models.CharField(max_length=50)
-    saudi_number = models.CharField(max_length=50)
+    number_of_passengers = models.IntegerField(null=True, blank=True)
+    flight_itinerary = models.TextField(null=True, blank=True)
+    flight_code = models.CharField(max_length=100, null=True, blank=True)
+    travel_date = models.DateField(null=True, blank=True)
+    country_code = models.CharField(max_length=10, null=True, blank=True)
+    group_leader_name = models.CharField(max_length=255, null=True, blank=True)
+    india_number = models.CharField(max_length=50, null=True, blank=True)
+    saudi_number = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         db_table = 'group_visas'
@@ -76,12 +77,12 @@ class HotelDetail(models.Model):
     group_visa = models.ForeignKey(
         GroupVisa, on_delete=models.CASCADE, related_name='hotels'
     )
-    city = models.CharField(max_length=10, choices=CITY_CHOICES)
-    hotel_name = models.CharField(max_length=255)
-    room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES)
-    room_count = models.IntegerField()
-    check_in = models.DateField()
-    check_out = models.DateField()
+    city = models.CharField(max_length=10, choices=CITY_CHOICES, null=True, blank=True)
+    hotel_name = models.CharField(max_length=255, null=True, blank=True)
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES, null=True, blank=True)
+    room_count = models.IntegerField(null=True, blank=True)
+    check_in = models.DateField(null=True, blank=True)
+    check_out = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'hotel_details'
@@ -100,10 +101,10 @@ class TransportDetail(models.Model):
     group_visa = models.ForeignKey(
         GroupVisa, on_delete=models.CASCADE, related_name='transports'
     )
-    transport_type = models.CharField(max_length=30, choices=TRANSPORT_TYPES)
-    date = models.DateField()
-    time = models.TimeField()
-    period = models.CharField(max_length=2, choices=PERIOD_CHOICES)
+    transport_type = models.CharField(max_length=30, choices=TRANSPORT_TYPES, null=True, blank=True)
+    date = models.DateField(null=True, blank=True)
+    time = models.TimeField(null=True, blank=True)
+    period = models.CharField(max_length=2, choices=PERIOD_CHOICES, null=True, blank=True)
 
     class Meta:
         db_table = 'transport_details'
@@ -141,11 +142,11 @@ class AirTicket(models.Model):
     request = models.OneToOneField(
         BaseRequest, on_delete=models.CASCADE, primary_key=True, related_name='air_ticket_details'
     )
-    origin = models.CharField(max_length=100)
-    destination = models.CharField(max_length=100)
-    arrival_date = models.DateField()
-    departure_date = models.DateField()
-    passengers = models.IntegerField()
+    origin = models.CharField(max_length=100, null=True, blank=True)
+    destination = models.CharField(max_length=100, null=True, blank=True)
+    arrival_date = models.DateField(null=True, blank=True)
+    departure_date = models.DateField(null=True, blank=True)
+    passengers = models.IntegerField(null=True, blank=True)
     preferred_airline = models.CharField(max_length=255, blank=True, default='')
     luggage_weight = models.IntegerField(null=True, blank=True, help_text='Weight in KG')
     wheelchair_required = models.BooleanField(default=False)
@@ -159,6 +160,16 @@ class AirTicket(models.Model):
 
 
 class Attachment(models.Model):
+    DOCUMENT_TYPES = [
+        ('PASSPORT_FRONT', 'Passport Front'),
+        ('PASSPORT_BACK', 'Passport Back'),
+        ('PHOTO', 'Photograph'),
+        ('TICKET', 'Flight Ticket'),
+        ('VISA', 'Visa Copy'),
+        ('PAYMENT_RECEIPT', 'Payment Receipt'),
+        ('OTHER', 'Other'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     request = models.ForeignKey(
         BaseRequest, on_delete=models.CASCADE, related_name='attachments'
@@ -167,6 +178,7 @@ class Attachment(models.Model):
     file_url = models.URLField(max_length=1024, blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
     file_type = models.CharField(max_length=50, blank=True, null=True)
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES, default='OTHER')
     file_size = models.IntegerField(default=0, help_text='Size in bytes')
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
@@ -176,3 +188,25 @@ class Attachment(models.Model):
     class Meta:
         db_table = 'attachments'
         ordering = ['-created_at']
+
+class Passenger(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request = models.ForeignKey(BaseRequest, on_delete=models.CASCADE, related_name='passengers')
+    passport_number = models.CharField(max_length=50, null=True, blank=True)
+    full_name = models.CharField(max_length=255, null=True, blank=True)
+    nationality = models.CharField(max_length=100, null=True, blank=True)
+    gender = models.CharField(max_length=10, choices=[('MALE', 'Male'), ('FEMALE', 'Female'), ('OTHER', 'Other')], null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    passport_expiry = models.DateField(null=True, blank=True)
+    is_lead = models.BooleanField(default=False)
+    contact_number = models.CharField(max_length=50, blank=True, null=True)
+    status = models.CharField(max_length=50, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'passengers'
+        ordering = ['-is_lead', 'full_name']
+
+    def __str__(self):
+        return f"{self.full_name} ({self.passport_number})"

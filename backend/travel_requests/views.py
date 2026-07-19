@@ -58,6 +58,40 @@ class RequestViewSet(viewsets.ModelViewSet):
         
         notify_admins_new_request(serializer.instance.request_type, str(serializer.instance.id))
 
+    @action(detail=False, methods=['get'])
+    def dashboard_stats(self, request):
+        qs = self.get_queryset()
+        
+        # Calculate stats
+        total = qs.count()
+        pending = qs.filter(status__in=['SUBMITTED', 'UNDER_REVIEW']).count()
+        processing = qs.filter(status='PROCESSING').count()
+        completed = qs.filter(status__in=['APPROVED', 'COMPLETED']).count()
+        rejected = qs.filter(status='REJECTED').count()
+        draft = qs.filter(status='DRAFT').count()
+        
+        # Distribution
+        distribution = {
+            'group_visa': qs.filter(request_type='GROUP_VISA').count(),
+            'individual_visa': qs.filter(request_type='INDIVIDUAL_VISA').count(),
+            'air_ticket': qs.filter(request_type='AIR_TICKET').count(),
+        }
+
+        # Recent requests
+        recent = qs.order_by('-created_at')[:5]
+        recent_data = BaseRequestSerializer(recent, many=True).data
+
+        return Response({
+            'total_requests': total,
+            'pending_requests': pending,
+            'processing_requests': processing,
+            'completed_requests': completed,
+            'rejected_requests': rejected,
+            'draft_requests': draft,
+            'distribution': distribution,
+            'recent_requests': recent_data
+        })
+
     @action(detail=True, methods=['patch'])
     def update_status(self, request, pk=None):
         if request.user.role not in ['SUPER_ADMIN', 'ADMIN']:
@@ -108,3 +142,14 @@ class AttachmentViewSet(viewsets.ModelViewSet):
             )
         else:
             serializer.save(uploaded_by=self.request.user)
+
+    def perform_update(self, serializer):
+        file_obj = self.request.FILES.get('file')
+        if file_obj:
+            serializer.save(
+                file_name=file_obj.name,
+                file_type=file_obj.content_type,
+                file_size=file_obj.size
+            )
+        else:
+            serializer.save()

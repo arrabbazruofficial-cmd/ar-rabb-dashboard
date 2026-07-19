@@ -60,7 +60,7 @@ export default function Login() {
           className="absolute inset-0 w-full h-full object-cover animate-fade-up" 
           style={{ animationDuration: '1.2s' }} 
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#FF7A00]/90 via-[#FF7A00]/20 to-transparent mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-secondary/90 via-secondary/20 to-transparent mix-blend-multiply" />
         <div className="absolute inset-0 bg-black/10" />
         <div className="absolute bottom-16 left-16 right-16 text-white animate-fade-up" style={{ animationDelay: '0.3s' }}>
           <h2 className="text-4xl lg:text-5xl font-heading font-bold mb-6 leading-tight drop-shadow-lg">
@@ -75,7 +75,7 @@ export default function Login() {
       {/* Right Pane - Form */}
       <div className="flex items-center justify-center p-8 lg:p-16 relative overflow-hidden">
         {/* Decorative background element for mobile */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FF7A00]/5 to-transparent z-0 lg:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0 lg:hidden" />
         
         <div className="w-full max-w-md relative z-10 animate-fade-up" style={{ animationDelay: '0.1s' }}>
           <div className="flex flex-col mb-10">
