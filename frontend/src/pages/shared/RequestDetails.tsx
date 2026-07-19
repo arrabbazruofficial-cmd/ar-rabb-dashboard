@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { api } from '@/lib/api';
 import { 
   ArrowLeft, FileText, AlertCircle, Clock, 
-  Users, Building2, MessageSquare, ChevronDown, ChevronUp, UploadCloud, FileArchive
+  Users, Building2, MessageSquare, ChevronDown, ChevronUp, UploadCloud, FileArchive, Plus, X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AttachmentManager } from '@/components/ui/AttachmentManager';
@@ -23,6 +23,7 @@ export default function RequestDetails() {
   const [uploadingPassengerId, setUploadingPassengerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedPassengerId, setSelectedPassengerId] = useState<string | null>(null);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
 
   const fetchRequest = async () => {
     try {
@@ -161,10 +162,16 @@ export default function RequestDetails() {
             {/* Passenger Management CRM Card */}
             {request.passengers && request.passengers.length > 0 && (
               <section className="bg-white rounded-xl shadow-sm border border-border p-6">
-                <div className="flex items-center justify-between mb-6 border-b border-border pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 border-b border-border pb-4 gap-4">
                   <h3 className="text-xl font-bold font-heading flex items-center gap-2 text-slate-800">
                     <Users className="w-5 h-5 text-primary" /> Passengers ({request.passengers.length})
                   </h3>
+                  <button 
+                    onClick={() => setShowAttachmentModal(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 text-sm bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Upload Attachments
+                  </button>
                 </div>
                 
                 <div className="space-y-4">
@@ -383,6 +390,38 @@ export default function RequestDetails() {
 
         </div>
       </div>
+
+      {showAttachmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Request Attachments</h3>
+              <button 
+                onClick={() => setShowAttachmentModal(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <AttachmentManager 
+                requestId={request.id} 
+                existingAttachments={request.attachments} 
+                onAttachmentUpdated={fetchRequest}
+                canEdit={role === 'AGENCY' || role === 'SUPER_ADMIN' || role === 'ADMIN'}
+              />
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-end bg-slate-50">
+              <button 
+                onClick={() => setShowAttachmentModal(false)}
+                className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

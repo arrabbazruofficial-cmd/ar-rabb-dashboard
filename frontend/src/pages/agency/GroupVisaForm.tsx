@@ -444,15 +444,24 @@ export default function GroupVisaForm() {
       <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
         {renderPhaseContent()}
 
-        <div className="flex justify-between pt-6">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={currentPhase === 1}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold border border-border bg-card text-foreground hover:bg-secondary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-6 mt-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={currentPhase === 1}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold border border-border bg-card text-foreground hover:bg-secondary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="px-6 py-2.5 rounded-lg font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
 
           {currentPhase < PHASES.length && (
             <button

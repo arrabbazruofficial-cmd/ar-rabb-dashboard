@@ -77,37 +77,63 @@ class RequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def dashboard_stats(self, request):
+        from django.core.cache import cache
+        from django.db.models import Count, Q
+        
+        cache_key = f"dashboard_stats_{request.user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
+
         qs = self.get_queryset()
         
-        # Calculate stats
-        total = qs.count()
-        pending = qs.filter(status__in=['SUBMITTED', 'UNDER_REVIEW']).count()
-        processing = qs.filter(status='PROCESSING').count()
-        completed = qs.filter(status__in=['APPROVED', 'COMPLETED']).count()
-        rejected = qs.filter(status='REJECTED').count()
-        draft = qs.filter(status='DRAFT').count()
-        
-        # Distribution
-        distribution = {
-            'group_visa': qs.filter(request_type='GROUP_VISA').count(),
-            'individual_visa': qs.filter(request_type='INDIVIDUAL_VISA').count(),
-            'air_ticket': qs.filter(request_type='AIR_TICKET').count(),
-        }
+        # Calculate stats in one query
+        stats = qs.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status__in=['SUBMITTED', 'UNDER_REVIEW'])),
+            processing=Count('id', filter=Q(status='PROCESSING')),
+            completed=Count('id', filter=Q(status__in=['APPROVED', 'COMPLETED'])),
+            rejected=Count('id', filter=Q(status='REJECTED')),
+            draft=Count('id', filter=Q(status='DRAFT')),
+            group_visa=Count('id', filter=Q(request_type='GROUP_VISA')),
+            individual_visa=Count('id', filter=Q(request_type='INDIVIDUAL_VISA')),
+            air_ticket=Count('id', filter=Q(request_type='AIR_TICKET')),
+        )
 
         # Recent requests
         recent = qs.order_by('-created_at')[:5]
-        recent_data = BaseRequestSerializer(recent, many=True).data
+        # Avoid heavy serialization for dashboard
+        recent_data = [
+            {
+                'id': str(r.id),
+                'request_type': r.request_type,
+                'status': r.status,
+                'current_phase': r.current_phase,
+                'created_at': r.created_at,
+                'updated_at': r.updated_at,
+                'agency_details': {'company_name': r.agency.company_name} if hasattr(r, 'agency') and r.agency else None,
+                'customer_details': {'email': r.customer.email} if r.customer else None,
+            }
+            for r in recent
+        ]
 
-        return Response({
-            'total_requests': total,
-            'pending_requests': pending,
-            'processing_requests': processing,
-            'completed_requests': completed,
-            'rejected_requests': rejected,
-            'draft_requests': draft,
-            'distribution': distribution,
+        data = {
+            'total_requests': stats['total'] or 0,
+            'pending_requests': stats['pending'] or 0,
+            'processing_requests': stats['processing'] or 0,
+            'completed_requests': stats['completed'] or 0,
+            'rejected_requests': stats['rejected'] or 0,
+            'draft_requests': stats['draft'] or 0,
+            'distribution': {
+                'group_visa': stats['group_visa'] or 0,
+                'individual_visa': stats['individual_visa'] or 0,
+                'air_ticket': stats['air_ticket'] or 0,
+            },
             'recent_requests': recent_data
-        })
+        }
+        
+        cache.set(cache_key, data, 300) # 5 mins cache
+        return Response(data)
 
     @action(detail=True, methods=['patch'])
     def update_status(self, request, pk=None):

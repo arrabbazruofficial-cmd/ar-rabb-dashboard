@@ -72,7 +72,7 @@ class AdminUserListView(generics.ListAPIView):
         user = self.request.user
         if user.role not in ['SUPER_ADMIN', 'ADMIN']:
             return User.objects.none()
-        queryset = User.objects.all().order_by('-created_at')
+        queryset = User.objects.select_related('agency_profile').order_by('-created_at')
         role = self.request.query_params.get('role')
         if role:
             queryset = queryset.filter(role=role)
