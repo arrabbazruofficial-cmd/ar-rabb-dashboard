@@ -21,7 +21,7 @@ export default function Login() {
   const [showOtp, setShowOtp] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
-  const [countdown, setCountdown] = useState(300); // 5 minutes
+  const [countdown, setCountdown] = useState(60); // 1 minute
   const [canResend, setCanResend] = useState(false);
 
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ export default function Login() {
       if (response.data.require_otp) {
         setUserEmail(response.data.email);
         setShowOtp(true);
-        setCountdown(300);
+        setCountdown(60);
         setCanResend(false);
       } else {
         const { access, refresh } = response.data;
@@ -124,7 +124,7 @@ export default function Login() {
     setError('');
     try {
       await api.post('/auth/send-otp/', { email: userEmail });
-      setCountdown(300);
+      setCountdown(60);
       setCanResend(false);
       setOtpCode(['', '', '', '', '', '']);
     } catch (err: any) {
