@@ -5,9 +5,10 @@ interface SoftValidationDialogProps {
   onClose: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
+  missingFields?: string[];
 }
 
-export function SoftValidationDialog({ isOpen, onClose, onConfirm, isSubmitting }: SoftValidationDialogProps) {
+export function SoftValidationDialog({ isOpen, onClose, onConfirm, isSubmitting, missingFields }: SoftValidationDialogProps) {
   if (!isOpen) return null;
 
   return (
@@ -18,9 +19,19 @@ export function SoftValidationDialog({ isOpen, onClose, onConfirm, isSubmitting 
             <AlertCircle className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Missing Information</h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-muted-foreground mb-4">
             Some required fields are missing or invalid. Do you want to save this request as a draft (Incomplete) anyway? You can update it later.
           </p>
+          {missingFields && missingFields.length > 0 && (
+            <div className="bg-secondary/10 p-3 rounded-lg mb-6 max-h-32 overflow-y-auto">
+              <p className="text-xs font-semibold mb-2">Missing Information:</p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                {missingFields.map((field, i) => (
+                  <li key={i}>{field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="flex gap-3 justify-end">
             <button
               type="button"

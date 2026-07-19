@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { FileUpload } from '@/components/ui/FileUpload';
+import { AttachmentManager } from '@/components/ui/AttachmentManager';
 import { useToast } from '@/components/ui/Toast';
 import { SoftValidationDialog } from '@/components/ui/SoftValidationDialog';
+import { PhaseNavigation } from '@/components/ui/PhaseNavigation';
 import { api } from '@/lib/api';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
 
 const hotelSchema = z.object({
@@ -52,17 +53,28 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const PHASES = [
+  { id: 1, label: 'Group Details' },
+  { id: 2, label: 'Travel & Hotel' },
+  { id: 3, label: 'Transport' },
+  { id: 4, label: 'Passengers' },
+  { id: 5, label: 'Review' },
+];
+
 export default function GroupVisaForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const editData = location.state?.editData;
-  const isEditing = !!editData;
   
+  const [requestId, setRequestId] = useState<string | null>(editData?.id || null);
+  const [currentPhase, setCurrentPhase] = useState(editData?.current_phase || 1);
+  const [highestReachedPhase, setHighestReachedPhase] = useState(editData?.current_phase || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
-  const [attachments, setAttachments] = useState<any[]>([]);
-
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<any[]>(editData?.attachments || []);
+  
   const { register, control, handleSubmit, formState: { errors }, getValues } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: editData?.group_visa || {
@@ -72,20 +84,51 @@ export default function GroupVisaForm() {
     }
   });
 
-  const { fields: hotelFields, append: appendHotel, remove: removeHotel } = useFieldArray({
-    control,
-    name: 'hotels'
-  });
+  const { fields: hotelFields, append: appendHotel, remove: removeHotel } = useFieldArray({ control, name: 'hotels' });
+  const { fields: transportFields, append: appendTransport, remove: removeTransport } = useFieldArray({ control, name: 'transports' });
+  const { fields: passengerFields, append: appendPassenger, remove: removePassenger } = useFieldArray({ control, name: 'passengers' });
 
-  const { fields: transportFields, append: appendTransport, remove: removeTransport } = useFieldArray({
-    control,
-    name: 'transports'
-  });
+  // Auto-save logic
+  const saveDraft = async (phase: number) => {
+    const data = getValues();
+    const { passengers, ...groupVisaData } = data;
+    const payload = {
+      request_type: 'GROUP_VISA',
+      group_visa: groupVisaData,
+      passengers: passengers,
+      status: 'INCOMPLETE',
+      current_phase: phase
+    };
 
-  const { fields: passengerFields, append: appendPassenger, remove: removePassenger } = useFieldArray({
-    control,
-    name: 'passengers'
-  });
+    try {
+      if (requestId) {
+        await api.patch(`/requests/${requestId}/`, payload);
+      } else {
+        const res = await api.post('/requests/', payload);
+        setRequestId(res.data.id);
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  };
+
+  const handleNext = async () => {
+    // Save draft and go to next phase
+    const nextPhase = currentPhase + 1;
+    await saveDraft(nextPhase);
+    setCurrentPhase(nextPhase);
+    setHighestReachedPhase(Math.max(highestReachedPhase, nextPhase));
+  };
+
+  const handleBack = () => {
+    setCurrentPhase((prev: number) => Math.max(1, prev - 1));
+  };
+
+  const handlePhaseClick = (phaseId: number) => {
+    if (phaseId <= highestReachedPhase) {
+      setCurrentPhase(phaseId);
+    }
+  };
 
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
@@ -95,31 +138,14 @@ export default function GroupVisaForm() {
         request_type: 'GROUP_VISA',
         group_visa: groupVisaData,
         passengers: passengers,
-        status: 'SUBMITTED'
+        status: 'SUBMITTED',
+        current_phase: 5
       };
       
-      let requestId = editData?.id;
-      
-      if (isEditing) {
+      if (requestId) {
         await api.patch(`/requests/${requestId}/`, payload);
       } else {
-        const res = await api.post('/requests/', payload);
-        requestId = res.data.id;
-      }
-
-      // 2. Upload attachments if any
-      if (attachments.length > 0) {
-        for (const file of attachments) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('request', requestId);
-          
-          await api.post('/requests/attachments/', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          });
-        }
+        await api.post('/requests/', payload);
       }
 
       toast('Group Visa request submitted successfully!', 'success');
@@ -132,49 +158,272 @@ export default function GroupVisaForm() {
   };
 
   const onError = () => {
+    // If we're on phase 5 and submitting, collect missing fields
+    const currentErrors = Object.keys(errors);
+    setMissingFields(currentErrors);
     setShowIncompleteDialog(true);
   };
 
   const submitIncomplete = async () => {
     setShowIncompleteDialog(false);
     setIsSubmitting(true);
-    try {
-      const data = getValues();
-      const { passengers, ...groupVisaData } = data as any;
-      
-      const payload = {
-        request_type: 'GROUP_VISA',
-        group_visa: groupVisaData,
-        passengers: passengers || [],
-        status: 'INCOMPLETE'
-      };
-      
-      let requestId = editData?.id;
-      
-      if (isEditing) {
-        await api.patch(`/requests/${requestId}/`, payload);
-      } else {
-        const res = await api.post('/requests/', payload);
-        requestId = res.data.id;
-      }
+    await saveDraft(currentPhase);
+    toast('Group Visa saved as incomplete.', 'success');
+    navigate('/agency/requests');
+    setIsSubmitting(false);
+  };
 
-      if (attachments.length > 0) {
-        for (const file of attachments) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('request', requestId);
-          await api.post('/requests/attachments/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-        }
-      }
-
-      toast('Group Visa saved as incomplete.', 'success');
-      navigate('/agency/requests');
-    } catch (error) {
-      toast('Failed to save request as incomplete. Please try again.', 'error');
-    } finally {
-      setIsSubmitting(false);
+  const renderPhaseContent = () => {
+    switch (currentPhase) {
+      case 1:
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+            <h2 className="text-xl font-semibold mb-6">Group Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Group Leader Name</label>
+                <input type="text" {...register('group_leader_name')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Number of Passengers</label>
+                <input type="number" {...register('number_of_passengers')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">India Contact Number</label>
+                <input type="text" {...register('india_number')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Saudi Contact Number</label>
+                <input type="text" {...register('saudi_number')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Country Code</label>
+                <input type="text" {...register('country_code')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+              </div>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-8 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+              <h2 className="text-xl font-semibold mb-6">Flight Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Travel Date</label>
+                  <input type="date" {...register('travel_date')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Flight Code</label>
+                  <input type="text" {...register('flight_code')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium">Flight Itinerary (Paste complete text)</label>
+                  <textarea {...register('flight_itinerary')} rows={4} className="w-full p-2.5 bg-input border border-border rounded-lg" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Hotel Requirements</h2>
+                <button type="button" onClick={() => appendHotel({ city: 'MAKKAH', hotel_name: '', room_type: 'QUAD', room_count: 1, check_in: '', check_out: '' })} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80">
+                  <Plus className="w-4 h-4" /> Add Hotel
+                </button>
+              </div>
+              <div className="space-y-6">
+                {hotelFields.map((field, index) => (
+                  <div key={field.id} className="relative p-4 rounded-xl border border-border bg-secondary/5">
+                    {index > 0 && (
+                      <button type="button" onClick={() => removeHotel(index)} className="absolute -top-3 -right-3 p-1.5 bg-destructive text-destructive-foreground rounded-full hover:opacity-90 shadow-sm">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">City</label>
+                        <select {...register(`hotels.${index}.city` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                          <option value="MAKKAH">Makkah</option>
+                          <option value="MADINAH">Madinah</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-xs font-medium">Hotel Name</label>
+                        <input type="text" {...register(`hotels.${index}.hotel_name` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Room Type</label>
+                        <select {...register(`hotels.${index}.room_type` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                          <option value="QUAD">Quad</option>
+                          <option value="PENTAGONAL">Pentagonal</option>
+                          <option value="HEXAGONAL">Hexagonal</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Check In</label>
+                        <input type="date" {...register(`hotels.${index}.check_in` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Check Out</label>
+                        <input type="date" {...register(`hotels.${index}.check_out` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Transport Details</h2>
+                <button type="button" onClick={() => appendTransport({ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' })} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80">
+                  <Plus className="w-4 h-4" /> Add Transport
+                </button>
+              </div>
+              <div className="space-y-6">
+                {transportFields.map((field, index) => (
+                  <div key={field.id} className="relative p-4 rounded-xl border border-border bg-secondary/5">
+                    {index > 0 && (
+                      <button type="button" onClick={() => removeTransport(index)} className="absolute -top-3 -right-3 p-1.5 bg-destructive text-destructive-foreground rounded-full hover:opacity-90 shadow-sm">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Route / Type</label>
+                        <select {...register(`transports.${index}.transport_type` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                          <option value="AIRPORT_PICKUP">Airport Pickup</option>
+                          <option value="MAKKAH_ZIYARAH">Makkah Ziyarah</option>
+                          <option value="MAKKAH_TO_MADINAH">Makkah to Madinah</option>
+                          <option value="MADINAH_ZIYARAH">Madinah Ziyarah / Rawdah</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Date</label>
+                        <input type="date" {...register(`transports.${index}.date` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Time</label>
+                        <input type="time" {...register(`transports.${index}.time` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Period</label>
+                        <select {...register(`transports.${index}.period` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                          <option value="FN">Forenoon (FN)</option>
+                          <option value="AN">Afternoon (AN)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Passengers</h2>
+                <button type="button" onClick={() => appendPassenger({ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: false, contact_number: '' })} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80">
+                  <Plus className="w-4 h-4" /> Add Passenger
+                </button>
+              </div>
+              <div className="space-y-6">
+                {passengerFields.map((field, index) => (
+                  <div key={field.id} className="relative p-4 rounded-xl border border-border bg-secondary/5">
+                    {index > 0 && (
+                      <button type="button" onClick={() => removePassenger(index)} className="absolute -top-3 -right-3 p-1.5 bg-destructive text-destructive-foreground rounded-full hover:opacity-90 shadow-sm">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2 md:col-span-1">
+                        <label className="text-xs font-medium">Passport Number</label>
+                        <input type="text" {...register(`passengers.${index}.passport_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-xs font-medium">Full Name</label>
+                        <input type="text" {...register(`passengers.${index}.full_name` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Nationality</label>
+                        <input type="text" {...register(`passengers.${index}.nationality` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Gender</label>
+                        <select {...register(`passengers.${index}.gender` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
+                          <option value="MALE">Male</option>
+                          <option value="FEMALE">Female</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">DOB</label>
+                        <input type="date" {...register(`passengers.${index}.date_of_birth` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">Passport Expiry</label>
+                        <input type="date" {...register(`passengers.${index}.passport_expiry` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2 flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" {...register(`passengers.${index}.is_lead` as const)} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
+                          <span className="text-sm font-medium">Lead Passenger</span>
+                        </label>
+                        <div className="flex-1">
+                          <input type="text" placeholder="Contact Number (Optional)" {...register(`passengers.${index}.contact_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 5:
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
+              <h2 className="text-xl font-semibold mb-6">Attachments & Review</h2>
+              {!requestId ? (
+                <div className="p-4 text-sm text-amber-800 bg-amber-50 rounded-lg border border-amber-200">
+                  You must save at least one field to generate a request ID before uploading attachments. 
+                  Click "Submit" to validate or "Previous" then "Next" to auto-save.
+                </div>
+              ) : (
+                <AttachmentManager 
+                  requestId={requestId} 
+                  existingAttachments={attachments} 
+                  canEdit={true} 
+                  onAttachmentUpdated={async () => {
+                    const res = await api.get(`/requests/${requestId}/`);
+                    setAttachments(res.data.attachments);
+                  }}
+                />
+              )}
+            </div>
+            <div className="bg-primary/5 p-6 rounded-2xl border border-primary/20">
+              <h3 className="text-lg font-semibold text-primary mb-2">Ready to Submit?</h3>
+              <p className="text-sm text-muted-foreground mb-4">Please ensure all required fields are filled and documents are attached. If anything is missing, you can still save this request as a draft.</p>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 w-full sm:w-auto bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-50"
+              >
+                {isSubmitting ? 'Submitting Request...' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
@@ -185,251 +434,35 @@ export default function GroupVisaForm() {
         <p className="text-muted-foreground mt-2">Submit a new group visa request with hotel and transport details.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit as any, onError)} className="space-y-8">
-        {/* Basic Details */}
-        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-          <h2 className="text-xl font-semibold mb-6">Group Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Group Leader Name</label>
-              <input type="text" {...register('group_leader_name')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.group_leader_name && <p className="text-xs text-destructive">{errors.group_leader_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Number of Passengers</label>
-              <input type="number" {...register('number_of_passengers')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.number_of_passengers && <p className="text-xs text-destructive">{errors.number_of_passengers.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">India Contact Number</label>
-              <input type="text" {...register('india_number')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.india_number && <p className="text-xs text-destructive">{errors.india_number.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Saudi Contact Number</label>
-              <input type="text" {...register('saudi_number')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.saudi_number && <p className="text-xs text-destructive">{errors.saudi_number.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Country Code</label>
-              <input type="text" {...register('country_code')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.country_code && <p className="text-xs text-destructive">{errors.country_code.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Travel Date</label>
-              <input type="date" {...register('travel_date')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.travel_date && <p className="text-xs text-destructive">{errors.travel_date.message}</p>}
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Flight Code</label>
-              <input type="text" {...register('flight_code')} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.flight_code && <p className="text-xs text-destructive">{errors.flight_code.message}</p>}
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Flight Itinerary (Paste complete text)</label>
-              <textarea {...register('flight_itinerary')} rows={4} className="w-full p-2.5 bg-input border border-border rounded-lg" />
-              {errors.flight_itinerary && <p className="text-xs text-destructive">{errors.flight_itinerary.message}</p>}
-            </div>
-          </div>
-        </div>
+      <PhaseNavigation 
+        phases={PHASES} 
+        currentPhase={currentPhase} 
+        highestReachedPhase={highestReachedPhase}
+        onPhaseClick={handlePhaseClick}
+      />
 
-        {/* Passengers */}
-        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Passengers</h2>
-            <button
-              type="button"
-              onClick={() => appendPassenger({ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: false, contact_number: '' })}
-              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
-            >
-              <Plus className="w-4 h-4" /> Add Passenger
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            {passengerFields.map((field, index) => (
-              <div key={field.id} className="p-4 border border-border rounded-xl relative bg-secondary/10">
-                {index > 0 && (
-                  <button type="button" onClick={() => removePassenger(index)} className="absolute top-4 right-4 text-destructive hover:opacity-80">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Full Name</label>
-                    <input type="text" {...register(`passengers.${index}.full_name` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                    {errors.passengers?.[index]?.full_name && <p className="text-xs text-destructive">{errors.passengers[index]?.full_name?.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Passport Number</label>
-                    <input type="text" {...register(`passengers.${index}.passport_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                    {errors.passengers?.[index]?.passport_number && <p className="text-xs text-destructive">{errors.passengers[index]?.passport_number?.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Nationality</label>
-                    <input type="text" {...register(`passengers.${index}.nationality` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Gender</label>
-                    <select {...register(`passengers.${index}.gender` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
-                      <option value="MALE">Male</option>
-                      <option value="FEMALE">Female</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Date of Birth</label>
-                    <input type="date" {...register(`passengers.${index}.date_of_birth` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Passport Expiry</label>
-                    <input type="date" {...register(`passengers.${index}.passport_expiry` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2 md:col-span-3 flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" {...register(`passengers.${index}.is_lead` as const)} className="w-4 h-4 rounded border-border text-primary focus:ring-primary" />
-                      <span className="text-sm font-medium">Lead Passenger</span>
-                    </label>
-                    <div className="flex-1">
-                      <input type="text" placeholder="Contact Number (Optional)" {...register(`passengers.${index}.contact_number` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
+        {renderPhaseContent()}
 
-        {/* Hotels */}
-        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Hotel Requirements</h2>
-            <button
-              type="button"
-              onClick={() => appendHotel({ city: 'MAKKAH', hotel_name: '', room_type: 'QUAD', room_count: 1, check_in: '', check_out: '' })}
-              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
-            >
-              <Plus className="w-4 h-4" /> Add Hotel
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            {hotelFields.map((field, index) => (
-              <div key={field.id} className="p-4 border border-border rounded-xl relative bg-secondary/20">
-                {index > 0 && (
-                  <button type="button" onClick={() => removeHotel(index)} className="absolute top-4 right-4 text-destructive hover:opacity-80">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">City</label>
-                    <select {...register(`hotels.${index}.city` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
-                      <option value="MAKKAH">Makkah</option>
-                      <option value="MADINAH">Madinah</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-medium">Hotel Name</label>
-                    <input type="text" {...register(`hotels.${index}.hotel_name` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Room Type</label>
-                    <select {...register(`hotels.${index}.room_type` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
-                      <option value="QUAD">Quad</option>
-                      <option value="PENTAGONAL">Pentagonal</option>
-                      <option value="HEXAGONAL">Hexagonal</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Number of Rooms</label>
-                    <input type="number" {...register(`hotels.${index}.room_count` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Check-In</label>
-                    <input type="date" {...register(`hotels.${index}.check_in` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Check-Out</label>
-                    <input type="date" {...register(`hotels.${index}.check_out` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Transport */}
-        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">Transport Requirements</h2>
-            <button
-              type="button"
-              onClick={() => appendTransport({ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' })}
-              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
-            >
-              <Plus className="w-4 h-4" /> Add Transport
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            {transportFields.map((field, index) => (
-              <div key={field.id} className="p-4 border border-border rounded-xl relative bg-secondary/20">
-                {index > 0 && (
-                  <button type="button" onClick={() => removeTransport(index)} className="absolute top-4 right-4 text-destructive hover:opacity-80">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Route / Type</label>
-                    <select {...register(`transports.${index}.transport_type` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
-                      <option value="AIRPORT_PICKUP">Airport Pickup</option>
-                      <option value="MAKKAH_ZIYARAH">Makkah Ziyarah</option>
-                      <option value="MAKKAH_TO_MADINAH">Makkah to Madinah</option>
-                      <option value="MADINAH_ZIYARAH">Madinah Ziyarah / Rawdah</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Date</label>
-                    <input type="date" {...register(`transports.${index}.date` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Time</label>
-                    <input type="time" {...register(`transports.${index}.time` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium">Period</label>
-                    <select {...register(`transports.${index}.period` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm">
-                      <option value="FN">Forenoon (FN)</option>
-                      <option value="AN">Afternoon (AN)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Attachments */}
-        <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-          <h2 className="text-xl font-semibold mb-6">Attachments</h2>
-          <FileUpload 
-            label="Upload Passports / Documents (PDF, JPG, PNG)"
-            onUploadSuccess={(file) => {
-              setAttachments(prev => [...prev, file]);
-            }}
-          />
-        </div>
-
-        <div className="flex justify-end">
+        <div className="flex justify-between pt-6">
           <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md disabled:opacity-50"
+            type="button"
+            onClick={handleBack}
+            disabled={currentPhase === 1}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold border border-border bg-card text-foreground hover:bg-secondary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Submitting Request...' : 'Submit Request'}
+            <ArrowLeft className="w-4 h-4" /> Back
           </button>
+
+          {currentPhase < PHASES.length && (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity shadow-sm"
+            >
+              Next <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </form>
 
@@ -438,6 +471,7 @@ export default function GroupVisaForm() {
         onClose={() => setShowIncompleteDialog(false)}
         onConfirm={submitIncomplete}
         isSubmitting={isSubmitting}
+        missingFields={missingFields}
       />
     </div>
   );

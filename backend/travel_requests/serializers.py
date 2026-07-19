@@ -78,7 +78,7 @@ class BaseRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = BaseRequest
         fields = (
-            'id', 'request_type', 'agency', 'customer', 'status', 'assigned_to', 
+            'id', 'request_type', 'agency', 'customer', 'status', 'current_phase', 'assigned_to', 
             'admin_notes', 'created_at', 'updated_at', 'group_visa', 'individual_visa', 
             'air_ticket', 'attachments', 'agency_details', 'assigned_to_details', 'customer_details',
             'passengers'

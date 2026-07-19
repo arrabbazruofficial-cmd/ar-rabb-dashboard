@@ -8,7 +8,8 @@ import { MoreVertical, Trash2, ShieldCheck, Power, PowerOff } from 'lucide-react
 
 import { getDashboardStats } from '@/lib/api';
 import { PieChart, Clock, CheckCircle2, XCircle, AlertCircle, Send, FileText as FileTextIcon, Activity, MessageSquare, Users, CheckCircle, ClipboardList, Settings, Bell } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 function DashboardHome() {
   const [stats, setStats] = useState<any>(null);
@@ -57,7 +58,7 @@ function DashboardHome() {
               <div>
                 <p className="text-sm font-semibold text-muted-foreground mb-1">{stat.label}</p>
                 <h3 className="text-3xl font-bold text-foreground">
-                  {isLoading ? <span className="animate-pulse bg-secondary/10 rounded h-8 w-16 inline-block"></span> : stat.value}
+                  {isLoading ? <Skeleton className="h-8 w-16" /> : stat.value}
                 </h3>
               </div>
               <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
@@ -77,8 +78,8 @@ function DashboardHome() {
               <PieChart className="w-5 h-5 text-primary" /> Request Distribution
             </h2>
             {isLoading ? (
-               <div className="animate-pulse space-y-4">
-                 {[1,2,3].map(i => <div key={i} className="h-12 bg-secondary/5 rounded"></div>)}
+               <div className="space-y-4">
+                 {[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
                </div>
             ) : (
               <div className="space-y-4">
@@ -185,18 +186,29 @@ function DashboardHome() {
               <Activity className="w-5 h-5 text-primary" /> Recent Activity
             </h2>
             <div className="relative border-l-2 border-secondary/10 ml-3 space-y-6">
-              {[
-                { title: 'New Group Visa Submitted', time: '10 mins ago', desc: 'Agency Al-Huda requested a group visa for 45 pax.' },
-                { title: 'Payment Verified', time: '1 hour ago', desc: 'Ticket payment for Request #4A2B confirmed.' },
-                { title: 'System Update', time: '3 hours ago', desc: 'New passport parsing module deployed.' },
-              ].map((act, i) => (
-                <div key={i} className="relative pl-6">
-                  <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
-                  <p className="text-sm font-bold text-foreground">{act.title}</p>
-                  <p className="text-xs font-medium text-primary mb-1">{act.time}</p>
-                  <p className="text-sm text-muted-foreground">{act.desc}</p>
+              {isLoading ? (
+                <div className="space-y-6">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="relative pl-6">
+                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-3 w-1/4 mb-1" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : stats?.recent_requests?.length > 0 ? (
+                stats.recent_requests.slice(0, 5).map((req: any) => (
+                  <div key={req.id} className="relative pl-6">
+                    <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
+                    <p className="text-sm font-bold text-foreground">New {req.request_type.replace('_', ' ')}</p>
+                    <p className="text-xs font-medium text-primary mb-1">{formatDistanceToNow(new Date(req.created_at))} ago</p>
+                    <p className="text-sm text-muted-foreground">{req.agency_details?.company_name || req.customer_details?.email || 'A user'} requested a {req.request_type.replace('_', ' ').toLowerCase()}. Status is {req.status}.</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground pl-4">No recent activity.</p>
+              )}
             </div>
           </div>
         </div>
@@ -267,9 +279,10 @@ function UserManagement({ title, role }: { title: string, role?: string }) {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={role === 'AGENCY' ? 6 : 5} className="px-6 py-12 text-center text-muted-foreground">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    Loading users...
+                  <td colSpan={role === 'AGENCY' ? 6 : 5} className="px-6 py-12">
+                    <div className="space-y-4">
+                      {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
                   </td>
                 </tr>
               ) : users.length === 0 ? (
