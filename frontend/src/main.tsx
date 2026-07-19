@@ -11,7 +11,6 @@ import VerifyEmail from './pages/VerifyEmail'
 import AdminDashboard from './pages/AdminDashboard'
 import AgencyDashboard from './pages/AgencyDashboard'
 import CustomerDashboard from './pages/CustomerDashboard'
-import NotificationsPage from './pages/NotificationsPage'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -36,11 +35,6 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/customer/*" element={
               <ProtectedRoute allowedRoles={['CUSTOMER']}>
                 <CustomerDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/notifications" element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'AGENCY', 'CUSTOMER']}>
-                <NotificationsPage />
               </ProtectedRoute>
             } />
           </Routes>

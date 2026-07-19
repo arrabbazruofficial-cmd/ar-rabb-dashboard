@@ -29,7 +29,7 @@ class HotelDetailSerializer(serializers.ModelSerializer):
 class TransportDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransportDetail
-        fields = ('id', 'transport_type', 'date', 'time', 'period')
+        fields = ('id', 'transport_type', 'from_location', 'to_location', 'date', 'time', 'period')
 
 
 class GroupVisaSerializer(serializers.ModelSerializer):

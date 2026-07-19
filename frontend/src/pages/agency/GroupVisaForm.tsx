@@ -21,6 +21,8 @@ const hotelSchema = z.object({
 
 const transportSchema = z.object({
   transport_type: z.enum(['AIRPORT_PICKUP', 'MAKKAH_ZIYARAH', 'MAKKAH_TO_MADINAH', 'MADINAH_ZIYARAH']),
+  from_location: z.string().optional(),
+  to_location: z.string().optional(),
   date: z.string().min(1, 'Date required'),
   time: z.string().min(1, 'Time required'),
   period: z.enum(['FN', 'AN']),
@@ -80,7 +82,7 @@ export default function GroupVisaForm() {
     resolver: zodResolver(formSchema) as any,
     defaultValues: editData?.group_visa || {
       hotels: [{ city: 'MAKKAH', hotel_name: '', room_type: 'QUAD', room_count: 1, check_in: '', check_out: '' }],
-      transports: [{ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' }],
+      transports: [{ transport_type: 'AIRPORT_PICKUP', from_location: '', to_location: '', date: '', time: '', period: 'FN' }],
       passengers: [{ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: true, contact_number: '' }]
     }
   });
@@ -290,7 +292,7 @@ export default function GroupVisaForm() {
             <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">Transport Details</h2>
-                <button type="button" onClick={() => appendTransport({ transport_type: 'AIRPORT_PICKUP', date: '', time: '', period: 'FN' })} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80">
+                <button type="button" onClick={() => appendTransport({ transport_type: 'AIRPORT_PICKUP', from_location: '', to_location: '', date: '', time: '', period: 'FN' })} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80">
                   <Plus className="w-4 h-4" /> Add Transport
                 </button>
               </div>
@@ -311,6 +313,14 @@ export default function GroupVisaForm() {
                           <option value="MAKKAH_TO_MADINAH">Makkah to Madinah</option>
                           <option value="MADINAH_ZIYARAH">Madinah Ziyarah / Rawdah</option>
                         </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">From Location</label>
+                        <input type="text" {...register(`transports.${index}.from_location` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium">To Location</label>
+                        <input type="text" {...register(`transports.${index}.to_location` as const)} className="w-full p-2 bg-input border border-border rounded-lg text-sm" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-medium">Date</label>

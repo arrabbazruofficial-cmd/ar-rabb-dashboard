@@ -103,6 +103,8 @@ class TransportDetail(models.Model):
         GroupVisa, on_delete=models.CASCADE, related_name='transports'
     )
     transport_type = models.CharField(max_length=30, choices=TRANSPORT_TYPES, null=True, blank=True)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
     date = models.DateField(null=True, blank=True)
     time = models.TimeField(null=True, blank=True)
     period = models.CharField(max_length=2, choices=PERIOD_CHOICES, null=True, blank=True)
