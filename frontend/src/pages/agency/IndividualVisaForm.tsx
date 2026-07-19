@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { SoftValidationDialog } from '@/components/ui/SoftValidationDialog';
 import { PhaseNavigation } from '@/components/ui/PhaseNavigation';
 import { api } from '@/lib/api';
-import { Plus, Trash2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, ArrowLeft, UploadCloud, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +68,7 @@ export default function IndividualVisaForm() {
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<any[]>(editData?.attachments || []);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'NORMAL' | 'IQAMA'>(editData?.individual_visa?.visa_subtype || 'NORMAL');
 
   const { register, handleSubmit, formState: { errors }, setValue, control, getValues } = useForm<FormValues>({
@@ -125,6 +126,15 @@ export default function IndividualVisaForm() {
 
   const handleBack = () => {
     setCurrentPhase((prev: number) => Math.max(1, prev - 1));
+  };
+
+  const handleOpenAttachments = async () => {
+    if (!requestId) {
+      setIsSubmitting(true);
+      await saveDraft(currentPhase);
+      setIsSubmitting(false);
+    }
+    setShowAttachmentModal(true);
   };
 
   const handlePhaseClick = (phaseId: number) => {
@@ -222,15 +232,20 @@ export default function IndividualVisaForm() {
             )}
 
             <div className="bg-card p-6 rounded-2xl shadow-sm border border-border">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-border pb-4">
                 <h2 className="text-xl font-semibold">Passengers</h2>
-                <button
-                  type="button"
-                  onClick={() => appendPassenger({ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: false, contact_number: '' })}
-                  className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
-                >
-                  <Plus className="w-4 h-4" /> Add Passenger
-                </button>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={handleOpenAttachments} className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors">
+                    <UploadCloud className="w-4 h-4" /> Upload Attachments
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => appendPassenger({ passport_number: '', full_name: '', nationality: '', gender: 'MALE', date_of_birth: '', passport_expiry: '', is_lead: false, contact_number: '' })}
+                    className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80"
+                  >
+                    <Plus className="w-4 h-4" /> Add Passenger
+                  </button>
+                </div>
               </div>
               
               <div className="space-y-6">
@@ -411,6 +426,47 @@ export default function IndividualVisaForm() {
         isSubmitting={isSubmitting}
         missingFields={missingFields}
       />
+
+      {showAttachmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">Request Attachments</h3>
+              <button 
+                onClick={() => setShowAttachmentModal(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {requestId ? (
+                <AttachmentManager 
+                  requestId={requestId} 
+                  existingAttachments={attachments} 
+                  onAttachmentUpdated={async () => {
+                    const res = await api.get(`/requests/${requestId}/`);
+                    setAttachments(res.data.attachments);
+                  }}
+                  canEdit={true}
+                />
+              ) : (
+                <div className="p-4 text-sm text-amber-800 bg-amber-50 rounded-lg border border-amber-200">
+                  Please save the form to generate a request ID before uploading attachments.
+                </div>
+              )}
+            </div>
+            <div className="p-5 border-t border-slate-100 flex justify-end bg-slate-50">
+              <button 
+                onClick={() => setShowAttachmentModal(false)}
+                className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

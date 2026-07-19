@@ -70,7 +70,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="AR-RABB Tours and Travels Logo" className="w-10 h-10 object-contain drop-shadow-sm brightness-0 invert" />
             <div>
-              <h1 className="text-xl font-bold font-heading leading-tight tracking-tight text-white">AR-RABB Tours and Travels</h1>
+              <h1 className="text-xl font-bold font-heading leading-tight tracking-tight text-white">LOGO-TEXT</h1>
               <p className="text-xs text-white/70 font-medium tracking-wide">ENTERPRISE</p>
             </div>
           </div>
